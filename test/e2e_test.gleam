@@ -58,7 +58,7 @@ pub fn sensor_to_orchestrator_test() {
   // 7. Receive perceptions from orchestrator
   let assert Ok(perceptions) = process.receive(perception_sub, 2000)
   // Should have perceptions for all 3 requested tasks
-  { list.length(perceptions) > 0 } |> should.be_true()
+  { perceptions != [] } |> should.be_true()
 }
 
 /// Test: orchestrator handles empty embedding gracefully.
