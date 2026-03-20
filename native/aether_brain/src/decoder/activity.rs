@@ -6,15 +6,6 @@
 use crate::model::InferenceResult;
 use serde_json::json;
 
-const ACTIVITIES: [&str; 6] = [
-    "idle",
-    "walking",
-    "sitting_down",
-    "standing_up",
-    "waving",
-    "falling",
-];
-
 pub fn infer(embedding: &[f64]) -> InferenceResult {
     let n = embedding.len() as f64;
     if n < 1.0 {

@@ -1,18 +1,21 @@
-//! FFI bindings to aether_brain Rust NIF.
-//! Foundation model inference on GPU/CPU.
-
-import gleam/dynamic.{type Dynamic}
+/// FFI bindings to aether_brain Rust NIF.
+/// Foundation model inference on GPU/CPU.
+///
+/// ModelRef is an opaque Erlang NIF resource — type-safe wrapper
+/// around the Rust ResourceArc<ModelRef> that lives on the BEAM heap.
+/// Opaque reference to a loaded model. Cannot be inspected or forged from Gleam.
+pub type ModelRef
 
 /// Load a foundation model from checkpoint.
 /// device: "cuda:0" or "cpu"
 @external(erlang, "aether_brain_nif", "load_model")
-pub fn load_model(path: String, device: String) -> Dynamic
+pub fn load_model(path: String, device: String) -> ModelRef
 
 /// Run multi-task inference on fused embedding.
 /// Returns JSON string with perception results.
 @external(erlang, "aether_brain_nif", "foundation_infer")
 pub fn foundation_infer(
-  model: Dynamic,
+  model: ModelRef,
   embedding: List(Float),
   tasks: List(String),
 ) -> String
@@ -27,7 +30,7 @@ pub fn cross_modal_fuse(
 
 /// Get model metadata as JSON.
 @external(erlang, "aether_brain_nif", "model_info")
-pub fn model_info(model: Dynamic) -> String
+pub fn model_info(model: ModelRef) -> String
 
 /// Check if the brain NIF is loaded.
 @external(erlang, "aether_brain_nif", "is_loaded")

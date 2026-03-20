@@ -52,6 +52,7 @@ pub fn stabilize(frames: &[Vec<f64>], window: usize) -> Vec<f64> {
 /// Weighted AveCSI: exponential moving average with decay factor.
 /// More recent frames contribute more to the average.
 /// `alpha` in [0, 1]: higher = more weight on recent frames.
+#[allow(dead_code)]
 pub fn stabilize_ema(frames: &[Vec<f64>], alpha: f64) -> Vec<f64> {
     if frames.is_empty() {
         return vec![];

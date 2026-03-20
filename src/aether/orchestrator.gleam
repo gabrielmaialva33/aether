@@ -7,14 +7,13 @@
 import aether/condition/pipeline.{type Conditioner, type PipelineMode, Inference}
 import aether/condition/ring_buffer.{type RingBuffer}
 import aether/core/types.{Vec3}
-import aether/nif/brain as brain_nif
+import aether/nif/brain.{type ModelRef}
 import aether/nif/signal as signal_nif
 import aether/perception.{
   type Event, type Keypoint, type Perception, Activity, Coco17, Keypoint,
   Location, Pose, Presence, Vitals,
 }
 import aether/signal.{type Signal}
-import gleam/dynamic
 import gleam/erlang/process.{type Subject}
 import gleam/float
 import gleam/int
@@ -35,7 +34,7 @@ pub type OrchestratorState {
   OrchestratorState(
     conditioners: List(Conditioner),
     mode: PipelineMode,
-    model: dynamic.Dynamic,
+    model: ModelRef,
     tasks: List(String),
     subscribers: List(Subject(List(Perception))),
     event_subscribers: List(Subject(Event)),
@@ -59,7 +58,7 @@ pub type OrchestratorConfig {
 pub fn start(
   config: OrchestratorConfig,
 ) -> Result(Subject(OrchestratorMsg), String) {
-  let model = brain_nif.load_model(config.model_path, config.device)
+  let model = brain.load_model(config.model_path, config.device)
 
   let state =
     OrchestratorState(
@@ -201,14 +200,14 @@ fn int_to_float(n: Int) -> Float
 // ─── Inference + JSON Parsing ───────────────────────────────────────────────
 
 fn run_inference(
-  model: dynamic.Dynamic,
+  model: ModelRef,
   embedding: List(Float),
   tasks: List(String),
 ) -> List(Perception) {
   case embedding {
     [] -> []
     _ -> {
-      let json_str = brain_nif.foundation_infer(model, embedding, tasks)
+      let json_str = brain.foundation_infer(model, embedding, tasks)
       parse_brain_json(json_str)
     }
   }
@@ -305,32 +304,6 @@ fn parse_keypoints(json_obj: String) -> List(Keypoint) {
 }
 
 // ─── JSON string helpers ────────────────────────────────────────────────────
-
-/// Split a JSON array string into individual objects.
-fn split_json_array(json: String) -> List(String) {
-  // Remove outer brackets
-  let trimmed = string.trim(json)
-  let inner = case string.starts_with(trimmed, "[") {
-    True ->
-      trimmed
-      |> string.drop_start(1)
-      |> string.drop_end(1)
-    False -> trimmed
-  }
-
-  // Split by "},{" and reconstruct
-  case string.split(inner, "},{") {
-    [single] -> [single]
-    parts ->
-      list.index_map(parts, fn(part, i) {
-        case i == 0, i == list.length(parts) - 1 {
-          True, _ -> part <> "}"
-          _, True -> "{" <> part
-          _, _ -> "{" <> part <> "}"
-        }
-      })
-  }
-}
 
 /// Extract a string value for a given key from a JSON-like string.
 /// Finds "key":"value" pattern.

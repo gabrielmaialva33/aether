@@ -15,8 +15,9 @@ pub struct ModelRef {
     inner: Mutex<Model>,
 }
 
+#[allow(non_local_definitions)]
 fn on_load(env: Env, _info: Term) -> bool {
-    rustler::resource!(ModelRef, env);
+    let _ = rustler::resource!(ModelRef, env);
     true
 }
 

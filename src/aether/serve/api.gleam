@@ -11,12 +11,12 @@ import aether/orchestrator.{type OrchestratorMsg}
 import aether/perception.{type Perception}
 import aether/serve/codec
 import gleam/bytes_tree
-import gleam/erlang/process.{type Selector, type Subject}
+import gleam/erlang/process.{type Subject}
 import gleam/http/request.{type Request}
 import gleam/http/response.{type Response}
 import gleam/json
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{Some}
 import mist.{type Connection, type ResponseData, type WebsocketConnection}
 
 /// Start the HTTP/WebSocket server.

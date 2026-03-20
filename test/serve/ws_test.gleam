@@ -31,7 +31,7 @@ pub fn websocket_receives_perceptions_test() {
   // 2. Connect via WebSocket using Erlang gun or websocket_client
   // Since we don't have a WS client lib, test via HTTP that the upgrade
   // endpoint exists (returns 400 without proper WS headers, not 404)
-  let assert Ok(body) =
+  let assert Ok(_body) =
     http_get("http://127.0.0.1:" <> int_to_str(port) <> "/ws/stream")
   // WebSocket upgrade without proper headers should return 400, not 404
   // This confirms the route exists and is handled

@@ -8,10 +8,7 @@
 import aether/core/types.{
   type PersonId, type Vec3, type Zone, Vec3, vec3_distance,
 }
-import aether/perception.{
-  type Event, type Perception, FallDetected, Keypoint, Location, PersonEntered,
-  PersonLeft, Pose,
-}
+import aether/perception.{type Event, type Perception, Keypoint, Location, Pose}
 import aether/track/event
 import aether/track/person.{type PersonState}
 import aether/track/zone as zone_tracker

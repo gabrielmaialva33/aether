@@ -50,6 +50,20 @@ pub fn with_api(config: SpaceConfig, port: Int) -> SpaceConfig {
   space.with_api_port(config, port)
 }
 
+/// Set the model checkpoint and device.
+pub fn with_model(
+  config: SpaceConfig,
+  path path: String,
+  device device: String,
+) -> SpaceConfig {
+  space.with_model(config, path: path, device: device)
+}
+
+/// Set inference tasks.
+pub fn with_tasks(config: SpaceConfig, tasks: List(String)) -> SpaceConfig {
+  space.with_tasks(config, tasks)
+}
+
 /// Start the Æther perception system.
 /// Boots: orchestrator → sensor actors (with UDP listeners) → HTTP API.
 /// Signals flow automatically: UDP → sensor actor → orchestrator → perceptions.
@@ -61,9 +75,9 @@ pub fn start(config: SpaceConfig) -> Result(Hub, String) {
       let orch_config =
         orchestrator.OrchestratorConfig(
           conditioners: config.conditioners,
-          model_path: "models/aether-v1.pt",
-          device: "cpu",
-          tasks: ["pose", "vitals", "presence", "activity"],
+          model_path: config.model_path,
+          device: config.device,
+          tasks: config.tasks,
         )
       case orchestrator.start(orch_config) {
         Error(e) -> Error("Orchestrator failed: " <> e)

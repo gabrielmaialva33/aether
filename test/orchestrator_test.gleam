@@ -1,13 +1,9 @@
 /// Tests for the orchestrator — JSON parsing, ring buffer, real inference.
-import aether/condition/pipeline
-import aether/core/types.{Vec3}
 import aether/orchestrator
-import aether/perception.{Activity, Coco17, Location, Pose, Presence, Vitals}
+import aether/perception.{Activity, Location, Pose, Presence, Vitals}
 import aether/signal.{Signal, WifiCsi}
 import gleam/erlang/process
-import gleam/float
 import gleam/list
-import gleam/option.{None, Some}
 import gleeunit
 import gleeunit/should
 
@@ -201,7 +197,7 @@ pub fn pose_has_keypoints_test() {
   case pose {
     Pose(keypoints, _skeleton, _conf) -> {
       // NIF returns 17 COCO keypoints
-      { list.length(keypoints) > 0 } |> should.be_true()
+      { keypoints != [] } |> should.be_true()
     }
     _ -> should.fail()
   }

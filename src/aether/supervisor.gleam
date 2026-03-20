@@ -22,16 +22,13 @@ import aether/serve/api
 import aether/signal
 import gleam/erlang/process.{type Subject}
 import gleam/list
-import gleam/otp/actor
-import gleam/otp/static_supervisor as supervisor
-import gleam/otp/supervision
 
 /// Start the full Æther supervision tree.
 /// Returns the orchestrator subject for external interaction.
 pub fn start(
   sensors: List(SensorConfig),
   conditioners: List(Conditioner),
-  zones: List(Zone),
+  _zones: List(Zone),
   api_port: Int,
   model_path: String,
   device: String,

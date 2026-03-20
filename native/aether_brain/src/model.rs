@@ -29,6 +29,7 @@ pub struct InferenceResult {
     pub confidence: f64,
 }
 
+#[allow(dead_code)]
 pub struct Model {
     device: String,
     checkpoint_path: String,
@@ -99,7 +100,7 @@ pub fn cross_modal_attention(embeddings: &[Vec<f64>], modality_ids: &[u32]) -> V
     }
 
     // Compute attention weights based on modality priority and signal energy
-    let mut weights: Vec<f64> = embeddings
+    let weights: Vec<f64> = embeddings
         .iter()
         .enumerate()
         .map(|(i, emb)| {

@@ -1,5 +1,5 @@
 import aether/core/types.{Vec3, Zone}
-import aether/perception.{Coco17, Keypoint, Location, Pose}
+import aether/perception.{Location}
 import aether/track/aggregator
 import gleam/erlang/process
 import gleam/list
