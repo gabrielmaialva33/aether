@@ -52,6 +52,11 @@ pub fn inject_frame(sensor: Subject(SensorMsg), frame: BitArray) -> Nil {
   actor.send(sensor, RawFrame(frame))
 }
 
+/// Alias for UDP listener compatibility
+pub fn send_raw_frame(sensor: Subject(SensorMsg), frame: BitArray) -> Nil {
+  actor.send(sensor, RawFrame(frame))
+}
+
 pub fn get_stats(sensor: Subject(SensorMsg)) -> SensorStats {
   actor.call(sensor, 1000, GetStats)
 }
