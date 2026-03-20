@@ -1,0 +1,6 @@
+build/
+erl_crash.dump
+*.beam
+*.ez
+native/*/target/
+*.so
