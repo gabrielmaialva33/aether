@@ -149,5 +149,14 @@ fn udp_recv(socket: UdpSock, timeout_ms: Int) -> Result(BitArray, String)
 @external(erlang, "aether_udp_ffi", "close")
 fn udp_close(socket: UdpSock) -> Nil
 
-@external(erlang, "aether_e2e_test_ffi", "udp_send_to")
-fn udp_send_to(host: #(Int, Int, Int, Int), port: Int, data: BitArray) -> Nil
+fn udp_send_to(host: #(Int, Int, Int, Int), port: Int, data: BitArray) -> Nil {
+  udp_send_raw(host, port, data, Nil)
+}
+
+@external(erlang, "aether_udp_ffi", "send_to")
+fn udp_send_raw(
+  host: #(Int, Int, Int, Int),
+  port: Int,
+  data: BitArray,
+  opts: Nil,
+) -> Nil
