@@ -1,0 +1,34 @@
+menu "Æther CSI Node Configuration"
+
+    config AETHER_WIFI_SSID
+        string "WiFi SSID"
+        default "aether-net"
+        help
+            SSID of the WiFi network to connect to.
+
+    config AETHER_WIFI_PASSWORD
+        string "WiFi Password"
+        default ""
+        help
+            Password for the WiFi network.
+
+    config AETHER_HUB_IP
+        string "Hub IP Address"
+        default "192.168.1.100"
+        help
+            IP address of the Æther hub to stream CSI data to.
+
+    config AETHER_HUB_PORT
+        int "Hub UDP Port"
+        default 5000
+        help
+            UDP port on the Æther hub for CSI data.
+
+    config AETHER_SAMPLE_RATE_MS
+        int "CSI Sample Interval (ms)"
+        default 10
+        help
+            Interval between CSI captures in milliseconds.
+            10ms = 100Hz, 20ms = 50Hz.
+
+endmenu

@@ -38,10 +38,7 @@ pub fn savgol_filter(
 
 /// AveCSI frame stabilization via sliding window average.
 @external(erlang, "aether_signal_nif", "avecsi_stabilize")
-pub fn avecsi_stabilize(
-  frames: List(List(Float)),
-  window: Int,
-) -> List(Float)
+pub fn avecsi_stabilize(frames: List(List(Float)), window: Int) -> List(Float)
 
 /// SpotFi Angle of Arrival estimation (MUSIC-based).
 @external(erlang, "aether_signal_nif", "spotfi_aoa")

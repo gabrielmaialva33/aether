@@ -79,12 +79,22 @@ pub fn spotfi_aoa_returns_angles_test() {
   { list.length(result) >= 0 } |> should.be_true()
 }
 
-fn generate_sine(samples: Int, freq_hz: Float, sample_rate: Float) -> List(Float) {
+fn generate_sine(
+  samples: Int,
+  freq_hz: Float,
+  sample_rate: Float,
+) -> List(Float) {
   do_generate_sine(0, samples, freq_hz, sample_rate, [])
   |> list.reverse()
 }
 
-fn do_generate_sine(i: Int, n: Int, freq: Float, sr: Float, acc: List(Float)) -> List(Float) {
+fn do_generate_sine(
+  i: Int,
+  n: Int,
+  freq: Float,
+  sr: Float,
+  acc: List(Float),
+) -> List(Float) {
   case i >= n {
     True -> acc
     False -> {
@@ -99,7 +109,12 @@ fn generate_ramp(n: Int, step: Float) -> List(Float) {
   do_generate_ramp(0, n, step, []) |> list.reverse()
 }
 
-fn do_generate_ramp(i: Int, n: Int, step: Float, acc: List(Float)) -> List(Float) {
+fn do_generate_ramp(
+  i: Int,
+  n: Int,
+  step: Float,
+  acc: List(Float),
+) -> List(Float) {
   case i >= n {
     True -> acc
     False -> do_generate_ramp(i + 1, n, step, [int_to_float(i) *. step, ..acc])

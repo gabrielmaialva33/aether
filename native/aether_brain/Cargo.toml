@@ -1,0 +1,18 @@
+[package]
+name = "aether_brain"
+version = "0.1.0"
+edition = "2024"
+description = "Æther foundation model NIF — inference, fusion, training on CUDA"
+
+[lib]
+name = "aether_brain"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = { version = "0.36", features = ["nif_version_2_15"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+default = []
+cuda = []
