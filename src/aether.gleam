@@ -67,6 +67,7 @@ pub fn with_tasks(config: SpaceConfig, tasks: List(String)) -> SpaceConfig {
 /// Start the Æther perception system.
 /// Boots: orchestrator → sensor actors (with UDP listeners) → HTTP API.
 /// Signals flow automatically: UDP → sensor actor → orchestrator → perceptions.
+/// No bridge processes — sensors call orchestrator.ingest() directly via callback.
 pub fn start(config: SpaceConfig) -> Result(Hub, String) {
   case config.sensors {
     [] -> Error("No sensors configured")
@@ -82,7 +83,7 @@ pub fn start(config: SpaceConfig) -> Result(Hub, String) {
       case orchestrator.start(orch_config) {
         Error(e) -> Error("Orchestrator failed: " <> e)
         Ok(orch) -> {
-          // 2. Start sensor actors — each one auto-forwards signals to orchestrator
+          // 2. Start sensor actors — each calls orchestrator.ingest directly
           let sensor_actors = start_sensor_actors(sensors, orch)
 
           // 3. Start API server
@@ -136,10 +137,11 @@ pub fn on_perception(hub: Hub, callback: fn(List(Perception)) -> Nil) -> Nil {
   do_spawn_listener(sub, callback)
 }
 
-// ─── Internal: sensor actor wiring ──────────────────────────────────────────
+// ─── Internal: sensor actor wiring (pure Gleam, no bridge FFI) ──────────────
 
 /// Start a sensor actor for each SensorConfig.
-/// Each sensor's signals are automatically forwarded to the orchestrator.
+/// Each sensor sends signals directly to the orchestrator via callback — no
+/// intermediate bridge process, no raw erlang:send, fully type-safe.
 fn start_sensor_actors(
   sensors: List(SensorConfig),
   orch: Subject(OrchestratorMsg),
@@ -153,23 +155,21 @@ fn start_one_sensor(
   config: SensorConfig,
   orch: Subject(OrchestratorMsg),
 ) -> Result(Subject(sensor_actor.SensorMsg), Nil) {
-  // Create a bridge subject: sensor actor → orchestrator
-  let bridge = process.new_subject()
+  // The sensor actor calls orchestrator.ingest() directly when it parses a signal.
+  // Pure Gleam — no Erlang bridge process, no raw message passing.
+  let on_signal = fn(signal: signal.Signal) {
+    orchestrator.ingest(orch, signal)
+  }
 
-  // Spawn bridge forwarder: receives Signals, sends to orchestrator
-  spawn_bridge(bridge, orch)
-
-  // Start the sensor actor with bridge as subscriber
-  let test_config =
-    sensor_actor.TestConfig(
+  let sensor_config =
+    sensor_actor.SensorStartConfig(
       id: config.id,
       kind: config.kind,
-      subscriber: bridge,
+      on_signal: on_signal,
     )
 
-  case sensor_actor.start_test(test_config) {
+  case sensor_actor.start(sensor_config) {
     Ok(actor_subject) -> {
-      // If transport is UDP, start the UDP listener
       case config.transport {
         Udp(_host, port) -> {
           let _ = sensor_udp.start_listener(port, actor_subject)
@@ -182,13 +182,6 @@ fn start_one_sensor(
     Error(_) -> Error(Nil)
   }
 }
-
-/// Spawn a process that forwards Signals from sensor actor to orchestrator.
-@external(erlang, "aether_bridge_ffi", "spawn_bridge")
-fn spawn_bridge(
-  from: Subject(signal.Signal),
-  to: Subject(OrchestratorMsg),
-) -> Nil
 
 @external(erlang, "aether_listener_ffi", "spawn_listener")
 fn do_spawn_listener(

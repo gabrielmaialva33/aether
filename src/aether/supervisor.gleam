@@ -1,17 +1,6 @@
 /// Æther Supervision Tree
 ///
-/// Structure:
-///   AetherSupervisor (OneForOne)
-///   ├── Orchestrator (worker)
-///   ├── SensorSupervisor (OneForOne, sub-supervisor)
-///   │   ├── Sensor("esp32-sala")
-///   │   ├── Sensor("esp32-quarto")
-///   │   └── ...
-///   └── ApiServer (worker)
-///
-/// If a sensor crashes, only that sensor restarts.
-/// If the orchestrator crashes, it restarts with a fresh state.
-/// Sensor actors automatically reconnect to the new orchestrator.
+/// Pure Gleam — no bridge FFI. Sensors call orchestrator.ingest() directly.
 import aether/condition/pipeline.{type Conditioner}
 import aether/core/types.{type Zone}
 import aether/orchestrator
@@ -23,8 +12,7 @@ import aether/signal
 import gleam/erlang/process.{type Subject}
 import gleam/list
 
-/// Start the full Æther supervision tree.
-/// Returns the orchestrator subject for external interaction.
+/// Start the full Æther system.
 pub fn start(
   sensors: List(SensorConfig),
   conditioners: List(Conditioner),
@@ -34,7 +22,6 @@ pub fn start(
   device: String,
   tasks: List(String),
 ) -> Result(Subject(orchestrator.OrchestratorMsg), String) {
-  // 1. Start orchestrator first (needed by sensors and API)
   let orch_config =
     orchestrator.OrchestratorConfig(
       conditioners: conditioners,
@@ -46,12 +33,8 @@ pub fn start(
   case orchestrator.start(orch_config) {
     Error(e) -> Error("Orchestrator failed: " <> e)
     Ok(orch) -> {
-      // 2. Start sensor actors with bridges to orchestrator
-      list.each(sensors, fn(sensor_config) { start_sensor(sensor_config, orch) })
-
-      // 3. Start API server
+      list.each(sensors, fn(config) { start_sensor(config, orch) })
       let _ = api.start(api_port, orch)
-
       Ok(orch)
     }
   }
@@ -61,21 +44,16 @@ fn start_sensor(
   config: SensorConfig,
   orch: Subject(orchestrator.OrchestratorMsg),
 ) -> Nil {
-  // Create bridge subject: sensor signals → orchestrator
-  let bridge = process.new_subject()
-  spawn_bridge(bridge, orch)
+  let on_signal = fn(sig: signal.Signal) { orchestrator.ingest(orch, sig) }
 
-  // Start sensor actor
-  let test_config =
-    sensor_actor.TestConfig(
+  case
+    sensor_actor.start(sensor_actor.SensorStartConfig(
       id: config.id,
       kind: config.kind,
-      subscriber: bridge,
-    )
-
-  case sensor_actor.start_test(test_config) {
-    Ok(actor_subject) -> {
-      // If UDP transport, start listener
+      on_signal: on_signal,
+    ))
+  {
+    Ok(actor_subject) ->
       case config.transport {
         Udp(_host, port) -> {
           let _ = sensor_udp.start_listener(port, actor_subject)
@@ -83,13 +61,6 @@ fn start_sensor(
         }
         _ -> Nil
       }
-    }
     Error(_) -> Nil
   }
 }
-
-@external(erlang, "aether_bridge_ffi", "spawn_bridge")
-fn spawn_bridge(
-  from: Subject(signal.Signal),
-  to: Subject(orchestrator.OrchestratorMsg),
-) -> Nil
