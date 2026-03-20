@@ -14,14 +14,15 @@ import aether/perception.{
   Location, Pose, Presence, Vitals,
 }
 import aether/signal.{type Signal}
+import gleam/dynamic
+import gleam/dynamic/decode
 import gleam/erlang/process.{type Subject}
-import gleam/float
 import gleam/int
+import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/otp/actor
 import gleam/result
-import gleam/string
 
 pub type OrchestratorMsg {
   IngestSignal(Signal)
@@ -215,162 +216,122 @@ fn run_inference(
 
 /// Parse the JSON array returned by aether_brain NIF.
 /// Format: [{"task":"pose","data":{...},"confidence":0.9}, ...]
+/// Uses gleam_json + gleam/dynamic/decode for proper parsing.
 fn parse_brain_json(json_str: String) -> List(Perception) {
-  // The entire JSON string contains all results — parse each task
-  // by finding task markers in the full string
-  let tasks_found = find_task_blocks(json_str)
-  list.filter_map(tasks_found, fn(block) { parse_single_result(block) })
-}
-
-/// Find individual task JSON blocks within the array.
-fn find_task_blocks(json: String) -> List(String) {
-  // Split by "task":" to find each result block
-  case string.split(json, "\"task\":\"") {
-    [_prefix, ..blocks] ->
-      list.map(blocks, fn(block) { "\"task\":\"" <> block })
-    _ -> []
+  case json.parse(json_str, decode.list(inference_result_decoder())) {
+    Ok(results) -> list.filter_map(results, result_to_perception)
+    Error(_) -> []
   }
 }
 
-fn parse_single_result(json_obj: String) -> Result(Perception, Nil) {
-  let task = extract_string_value(json_obj, "task")
-  let confidence = extract_number(json_obj, "confidence", 0.5)
+/// Decoded inference result from brain NIF.
+type InferResult {
+  InferResult(task: String, data: dynamic.Dynamic, confidence: Float)
+}
 
-  case task {
+fn inference_result_decoder() -> decode.Decoder(InferResult) {
+  use task <- decode.field("task", decode.string)
+  use data <- decode.field("data", decode.dynamic)
+  use confidence <- decode.field("confidence", decode.float)
+  decode.success(InferResult(task:, data:, confidence:))
+}
+
+/// Convert a decoded InferResult into a typed Perception.
+fn result_to_perception(result: InferResult) -> Result(Perception, Nil) {
+  case result.task {
     "pose" -> {
-      let keypoints = parse_keypoints(json_obj)
-      Ok(Pose(keypoints: keypoints, skeleton: Coco17, confidence: confidence))
+      let keypoints = decode_keypoints(result.data)
+      Ok(Pose(keypoints:, skeleton: Coco17, confidence: result.confidence))
     }
     "vitals" -> {
-      Ok(Vitals(
-        heart_bpm: extract_number(json_obj, "heart_bpm", 0.0),
-        breath_bpm: extract_number(json_obj, "breath_bpm", 0.0),
-        hrv: case extract_number(json_obj, "hrv", -1.0) {
-          val if val >=. 0.0 -> Some(val)
-          _ -> None
-        },
-        confidence: confidence,
-      ))
+      let decoder = {
+        use heart <- decode.field("heart_bpm", decode.float)
+        use breath <- decode.field("breath_bpm", decode.float)
+        use hrv <- decode.optional_field("hrv", 0.0, decode.float)
+        decode.success(#(heart, breath, hrv))
+      }
+      case decode.run(result.data, decoder) {
+        Ok(#(heart, breath, hrv)) ->
+          Ok(Vitals(
+            heart_bpm: heart,
+            breath_bpm: breath,
+            hrv: Some(hrv),
+            confidence: result.confidence,
+          ))
+        Error(_) -> Error(Nil)
+      }
     }
     "presence" -> {
-      let occupied = string.contains(json_obj, "\"occupied\":true")
-      let count =
-        extract_number(json_obj, "occupant_count", 0.0) |> float.round()
-      Ok(
-        Presence(zones: [], total_occupants: case occupied {
-          True -> int.max(count, 1)
-          False -> 0
-        }),
-      )
+      let decoder = {
+        use count <- decode.optional_field("occupant_count", 0, decode.int)
+        use occupied <- decode.optional_field("occupied", False, decode.bool)
+        decode.success(#(count, occupied))
+      }
+      case decode.run(result.data, decoder) {
+        Ok(#(count, occupied)) ->
+          Ok(
+            Presence(zones: [], total_occupants: case occupied {
+              True -> int.max(count, 1)
+              False -> 0
+            }),
+          )
+        Error(_) -> Ok(Presence(zones: [], total_occupants: 0))
+      }
     }
     "activity" -> {
-      let label = extract_string_value(json_obj, "label")
-      Ok(Activity(label: label, confidence: confidence, duration_ms: 0))
+      let decoder = {
+        use label <- decode.field("label", decode.string)
+        decode.success(label)
+      }
+      case decode.run(result.data, decoder) {
+        Ok(label) ->
+          Ok(Activity(label:, confidence: result.confidence, duration_ms: 0))
+        Error(_) -> Error(Nil)
+      }
     }
     "location" -> {
-      let x = extract_number(json_obj, "\"x\"", 0.0)
-      let y = extract_number(json_obj, "\"y\"", 0.0)
-      let z = extract_number(json_obj, "\"z\"", 0.0)
-      let acc = extract_number(json_obj, "accuracy_m", 5.0)
-      Ok(Location(position: Vec3(x, y, z), accuracy_m: acc, velocity: None))
+      let decoder = {
+        use x <- decode.field("x", decode.float)
+        use y <- decode.field("y", decode.float)
+        use z <- decode.field("z", decode.float)
+        use acc <- decode.optional_field("accuracy_m", 5.0, decode.float)
+        decode.success(#(x, y, z, acc))
+      }
+      case decode.run(result.data, decoder) {
+        Ok(#(x, y, z, acc)) ->
+          Ok(Location(position: Vec3(x, y, z), accuracy_m: acc, velocity: None))
+        Error(_) -> Error(Nil)
+      }
     }
     _ -> Error(Nil)
   }
 }
 
-fn parse_keypoints(json_obj: String) -> List(Keypoint) {
-  // Extract individual keypoint objects from the keypoints array
-  case string.split(json_obj, "\"name\":\"") {
-    [_header, ..parts] ->
-      list.filter_map(parts, fn(part) {
-        case string.split(part, "\"") {
-          [name, ..rest] -> {
-            let rest_str = string.join(rest, "\"")
-            Ok(Keypoint(
-              id: 0,
-              name: name,
-              x: extract_number(rest_str, "\"x\"", 0.0),
-              y: extract_number(rest_str, "\"y\"", 0.0),
-              z: extract_number(rest_str, "\"z\"", 0.0),
-              confidence: extract_number(rest_str, "confidence", 0.5),
-              velocity: None,
-            ))
-          }
-          _ -> Error(Nil)
-        }
-      })
-    _ -> []
+/// Decode keypoints from the "data" field of a pose result.
+fn decode_keypoints(data: dynamic.Dynamic) -> List(Keypoint) {
+  let kp_decoder = {
+    use id <- decode.field("id", decode.int)
+    use name <- decode.field("name", decode.string)
+    use x <- decode.field("x", decode.float)
+    use y <- decode.field("y", decode.float)
+    use z <- decode.field("z", decode.float)
+    use conf <- decode.field("confidence", decode.float)
+    decode.success(Keypoint(
+      id:,
+      name:,
+      x:,
+      y:,
+      z:,
+      confidence: conf,
+      velocity: None,
+    ))
   }
-}
-
-// ─── JSON string helpers ────────────────────────────────────────────────────
-
-/// Extract a string value for a given key from a JSON-like string.
-/// Finds "key":"value" pattern.
-fn extract_string_value(json: String, key: String) -> String {
-  let pattern = "\"" <> key <> "\":\""
-  case string.split(json, pattern) {
-    [_, after, ..] ->
-      case string.split(after, "\"") {
-        [value, ..] -> value
-        _ -> ""
-      }
-    _ -> ""
+  let decoder =
+    decode.field("keypoints", decode.list(kp_decoder), fn(kps) {
+      decode.success(kps)
+    })
+  case decode.run(data, decoder) {
+    Ok(kps) -> kps
+    Error(_) -> []
   }
-}
-
-/// Extract a numeric value for a given key from a JSON-like string.
-/// Finds "key":NUMBER pattern.
-fn extract_number(json: String, key: String, default: Float) -> Float {
-  // Handle both "key": and key: patterns (key might already have quotes)
-  let pattern = case string.starts_with(key, "\"") {
-    True -> key <> ":"
-    False -> "\"" <> key <> "\":"
-  }
-  case string.split(json, pattern) {
-    [_, after, ..] -> {
-      let num_str = take_number_chars(after)
-      case float.parse(num_str) {
-        Ok(val) -> val
-        Error(_) ->
-          case int.parse(num_str) {
-            Ok(val) -> int_to_float(val)
-            Error(_) -> default
-          }
-      }
-    }
-    _ -> default
-  }
-}
-
-/// Take characters that form a number from the start of a string.
-fn take_number_chars(s: String) -> String {
-  let chars = string.to_graphemes(s)
-  take_num_acc(chars, [])
-  |> list.reverse()
-  |> string.join("")
-}
-
-fn take_num_acc(chars: List(String), acc: List(String)) -> List(String) {
-  case chars {
-    [c, ..rest] ->
-      case c == "-" || c == "." || is_digit(c) {
-        True -> take_num_acc(rest, [c, ..acc])
-        False -> acc
-      }
-    [] -> acc
-  }
-}
-
-fn is_digit(c: String) -> Bool {
-  c == "0"
-  || c == "1"
-  || c == "2"
-  || c == "3"
-  || c == "4"
-  || c == "5"
-  || c == "6"
-  || c == "7"
-  || c == "8"
-  || c == "9"
 }
