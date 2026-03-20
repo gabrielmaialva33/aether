@@ -17,6 +17,8 @@ import gleam/http/response.{type Response}
 import gleam/json
 import gleam/list
 import gleam/option.{Some}
+import gleam/result
+import gleam/string
 import mist.{type Connection, type ResponseData, type WebsocketConnection}
 
 /// Start the HTTP/WebSocket server.
@@ -44,6 +46,12 @@ fn handle_request(
     ["api", "perceptions"] -> perceptions_response(orch)
     ["api", "sensors"] -> sensors_response()
     ["ws", "stream"] -> ws_stream(req, orch)
+    [] -> serve_static("index.html", "text/html")
+    ["assets", ..path] -> {
+      let file_path = "assets/" <> string.join(path, "/")
+      let content_type = guess_content_type(file_path)
+      serve_static(file_path, content_type)
+    }
     _ -> not_found_response()
   }
 }
@@ -148,6 +156,47 @@ fn ws_handler(
     _ -> mist.continue(state)
   }
 }
+
+// ─── Static File Serving ────────────────────────────────────────────────
+
+fn serve_static(path: String, content_type: String) -> Response(ResponseData) {
+  let priv_path = static_dir() <> "/" <> path
+  case read_file(priv_path) {
+    Ok(contents) -> {
+      let body = bytes_tree.from_bit_array(contents)
+      response.new(200)
+      |> response.set_header("content-type", content_type)
+      |> response.set_header("cache-control", "public, max-age=3600")
+      |> response.set_body(mist.Bytes(body))
+    }
+    Error(_) -> not_found_response()
+  }
+}
+
+fn guess_content_type(path: String) -> String {
+  let ext =
+    path
+    |> string.split(".")
+    |> list.last()
+    |> result.unwrap("")
+  case ext {
+    "css" -> "text/css"
+    "js" -> "application/javascript"
+    "html" -> "text/html"
+    "svg" -> "image/svg+xml"
+    "png" -> "image/png"
+    "woff2" -> "font/woff2"
+    "woff" -> "font/woff"
+    "ttf" -> "font/ttf"
+    _ -> "application/octet-stream"
+  }
+}
+
+@external(erlang, "aether_static_ffi", "priv_dir")
+fn static_dir() -> String
+
+@external(erlang, "file", "read_file")
+fn read_file(path: String) -> Result(BitArray, String)
 
 @external(erlang, "erlang", "integer_to_binary")
 fn port_to_string(port: Int) -> String

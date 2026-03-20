@@ -30,7 +30,7 @@ pub fn main() {
       subcarriers: 56,
       sample_rate: 100,
     ))
-    |> aether.with_api(8080)
+    |> aether.with_api(9090)
     |> aether.start()
 
   io.println("")

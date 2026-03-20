@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html class="h-full" data-kt-theme="true" lang="en">
+<head>
+  <title>Æther — Ambient RF Perception</title>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="assets/vendors/keenicons/styles.bundle.css" rel="stylesheet"/>
+  <link href="assets/css/styles.css" rel="stylesheet"/>
+  <style>
+    :root { color-scheme: dark; }
+    body { background: #0f172a; }
+    .aether-glow { box-shadow: 0 0 20px rgba(99, 102, 241, 0.15); }
+    .pulse-ring { animation: pulse-ring 2s ease-out infinite; }
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+      100% { box-shadow: 0 0 0 20px rgba(99, 102, 241, 0); }
+    }
+    .heartbeat { animation: heartbeat 1s ease-in-out infinite; }
+    @keyframes heartbeat {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    #skeleton-canvas { background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%); border-radius: 12px; }
+    .stat-value { font-variant-numeric: tabular-nums; }
+    .zone-active { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); }
+    .zone-empty { background: rgba(100, 116, 139, 0.05); border: 1px dashed rgba(100, 116, 139, 0.2); }
+    .ws-connected { color: #22c55e; }
+    .ws-disconnected { color: #ef4444; }
+  </style>
+</head>
+<body class="antialiased flex h-full text-base dark" style="background: #0f172a; color: #e2e8f0;">
+
+<!-- Full page layout -->
+<div class="flex flex-col w-full min-h-screen">
+
+  <!-- Header -->
+  <header class="flex items-center justify-between px-8 py-4 border-b" style="border-color: #1e293b; background: #0f172a;">
+    <div class="flex items-center gap-4">
+      <div class="text-2xl font-bold" style="color: #818cf8;">Æ</div>
+      <div>
+        <h1 class="text-lg font-semibold" style="color: #f1f5f9;">Æther</h1>
+        <p class="text-xs" style="color: #64748b;">Ambient RF Perception System</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2">
+        <span id="ws-indicator" class="w-2 h-2 rounded-full bg-red-500"></span>
+        <span id="ws-status" class="text-xs ws-disconnected">Disconnected</span>
+      </div>
+      <div class="text-xs" style="color: #64748b;">
+        <span id="fps-counter">0</span> fps
+      </div>
+    </div>
+  </header>
+
+  <!-- Main content -->
+  <div class="flex-1 p-6 grid grid-cols-12 gap-5">
+
+    <!-- Left: Skeleton + Activity -->
+    <div class="col-span-12 lg:col-span-5 flex flex-col gap-5">
+
+      <!-- Pose Skeleton -->
+      <div class="rounded-xl p-5 aether-glow" style="background: #1e293b;">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-semibold" style="color: #f1f5f9;">Pose Estimation</h2>
+          <span id="pose-conf" class="text-xs px-2 py-0.5 rounded-full" style="background: #312e81; color: #a5b4fc;">--</span>
+        </div>
+        <canvas id="skeleton-canvas" width="480" height="400" class="w-full"></canvas>
+        <div class="flex justify-between mt-3 text-xs" style="color: #64748b;">
+          <span id="keypoint-count">0 keypoints</span>
+          <span id="skeleton-type">COCO17</span>
+        </div>
+      </div>
+
+      <!-- Activity -->
+      <div class="rounded-xl p-5" style="background: #1e293b;">
+        <h2 class="text-sm font-semibold mb-3" style="color: #f1f5f9;">Activity Recognition</h2>
+        <div class="flex items-center gap-4">
+          <div id="activity-icon" class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style="background: #312e81;">
+            🧘
+          </div>
+          <div>
+            <div id="activity-label" class="text-lg font-bold" style="color: #f1f5f9;">--</div>
+            <div class="flex items-center gap-2 mt-1">
+              <div class="w-24 h-1.5 rounded-full" style="background: #334155;">
+                <div id="activity-bar" class="h-1.5 rounded-full" style="background: #818cf8; width: 0%;"></div>
+              </div>
+              <span id="activity-conf" class="text-xs" style="color: #64748b;">0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Vitals -->
+    <div class="col-span-12 lg:col-span-4 flex flex-col gap-5">
+
+      <!-- Heart Rate -->
+      <div class="rounded-xl p-5" style="background: #1e293b;">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-sm font-semibold" style="color: #f1f5f9;">Heart Rate</h2>
+          <span class="text-xs" style="color: #64748b;">BPM</span>
+        </div>
+        <div class="flex items-end gap-3">
+          <div id="heart-bpm" class="text-5xl font-bold stat-value heartbeat" style="color: #f43f5e;">--</div>
+          <div class="text-sm mb-2" style="color: #64748b;">bpm</div>
+        </div>
+        <div id="heart-bar" class="w-full h-2 rounded-full mt-4" style="background: #334155;">
+          <div id="heart-fill" class="h-2 rounded-full transition-all duration-500" style="background: linear-gradient(90deg, #f43f5e, #ec4899); width: 0%;"></div>
+        </div>
+        <div class="flex justify-between mt-2 text-xs" style="color: #475569;">
+          <span>40</span><span>80</span><span>120</span>
+        </div>
+      </div>
+
+      <!-- Breathing Rate -->
+      <div class="rounded-xl p-5" style="background: #1e293b;">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-sm font-semibold" style="color: #f1f5f9;">Breathing Rate</h2>
+          <span class="text-xs" style="color: #64748b;">BPM</span>
+        </div>
+        <div class="flex items-end gap-3">
+          <div id="breath-bpm" class="text-5xl font-bold stat-value" style="color: #06b6d4;">--</div>
+          <div class="text-sm mb-2" style="color: #64748b;">bpm</div>
+        </div>
+        <div class="w-full h-2 rounded-full mt-4" style="background: #334155;">
+          <div id="breath-fill" class="h-2 rounded-full transition-all duration-500" style="background: linear-gradient(90deg, #06b6d4, #22d3ee); width: 0%;"></div>
+        </div>
+        <div class="flex justify-between mt-2 text-xs" style="color: #475569;">
+          <span>6</span><span>16</span><span>30</span>
+        </div>
+      </div>
+
+      <!-- HRV -->
+      <div class="rounded-xl p-5" style="background: #1e293b;">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-sm font-semibold" style="color: #f1f5f9;">Heart Rate Variability</h2>
+          <span class="text-xs" style="color: #64748b;">ms</span>
+        </div>
+        <div class="flex items-end gap-3">
+          <div id="hrv-value" class="text-4xl font-bold stat-value" style="color: #a78bfa;">--</div>
+          <div class="text-sm mb-1" style="color: #64748b;">ms</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Presence + Zones + Sensors -->
+    <div class="col-span-12 lg:col-span-3 flex flex-col gap-5">
+
+      <!-- Presence -->
+      <div class="rounded-xl p-5 pulse-ring" style="background: #1e293b;">
+        <h2 class="text-sm font-semibold mb-3" style="color: #f1f5f9;">Presence</h2>
+        <div class="text-center">
+          <div id="occupant-count" class="text-6xl font-bold" style="color: #22c55e;">0</div>
+          <div class="text-sm mt-1" style="color: #64748b;">occupant(s) detected</div>
+        </div>
+      </div>
+
+      <!-- Zones -->
+      <div class="rounded-xl p-5" style="background: #1e293b;">
+        <h2 class="text-sm font-semibold mb-3" style="color: #f1f5f9;">Zones</h2>
+        <div class="flex flex-col gap-2">
+          <div id="zone-sala" class="zone-empty rounded-lg p-3 flex items-center justify-between">
+            <span class="text-sm">Sala</span>
+            <span class="text-xs" style="color: #64748b;">--</span>
+          </div>
+          <div id="zone-quarto" class="zone-empty rounded-lg p-3 flex items-center justify-between">
+            <span class="text-sm">Quarto</span>
+            <span class="text-xs" style="color: #64748b;">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sensor -->
+      <div class="rounded-xl p-5" style="background: #1e293b;">
+        <h2 class="text-sm font-semibold mb-3" style="color: #f1f5f9;">ESP32 Sensor</h2>
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between">
+            <span style="color: #64748b;">Status</span>
+            <span id="sensor-status" style="color: #22c55e;">● Online</span>
+          </div>
+          <div class="flex justify-between">
+            <span style="color: #64748b;">IP</span>
+            <span style="color: #e2e8f0;">192.168.1.6</span>
+          </div>
+          <div class="flex justify-between">
+            <span style="color: #64748b;">RSSI</span>
+            <span id="sensor-rssi" style="color: #e2e8f0;">--</span>
+          </div>
+          <div class="flex justify-between">
+            <span style="color: #64748b;">Channel</span>
+            <span style="color: #e2e8f0;">4</span>
+          </div>
+          <div class="flex justify-between">
+            <span style="color: #64748b;">Frames</span>
+            <span id="frame-count" style="color: #e2e8f0;">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Events -->
+      <div class="rounded-xl p-5 flex-1" style="background: #1e293b;">
+        <h2 class="text-sm font-semibold mb-3" style="color: #f1f5f9;">Events</h2>
+        <div id="event-list" class="space-y-2 text-xs max-h-40 overflow-y-auto" style="color: #94a3b8;">
+          <div class="italic" style="color: #475569;">Waiting for data...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="px-8 py-3 border-t text-xs flex justify-between" style="border-color: #1e293b; color: #475569;">
+    <span>Æther v0.1.0 — Ambient RF Perception System</span>
+    <span>Gleam/OTP + Rust NIFs + ESP32 CSI</span>
+  </footer>
+</div>
+
+<script>
+// ─── Æther Dashboard — WebSocket Real-time ───────────────────────────────
+
+const ACTIVITY_ICONS = {
+  idle: '🧘', walking: '🚶', sitting_down: '🪑',
+  standing_up: '🧍', waving: '👋', falling: '⚠️', unknown: '❓'
+};
+
+const COCO17_SKELETON = [
+  [0,1],[0,2],[1,3],[2,4],        // head
+  [5,6],                           // shoulders
+  [5,7],[7,9],[6,8],[8,10],       // arms
+  [5,11],[6,12],[11,12],          // torso
+  [11,13],[13,15],[12,14],[14,16] // legs
+];
+
+let ws = null;
+let frameCount = 0;
+let lastFrameTime = Date.now();
+let fpsFrames = 0;
+
+// ─── WebSocket Connection ────────────────────────────────────────────────
+
+function connect() {
+  const host = window.location.hostname || 'localhost';
+  const port = window.location.port || '9090';
+  ws = new WebSocket(`ws://${host}:${port}/ws/stream`);
+
+  ws.onopen = () => {
+    document.getElementById('ws-indicator').className = 'w-2 h-2 rounded-full bg-green-500';
+    document.getElementById('ws-status').textContent = 'Connected';
+    document.getElementById('ws-status').className = 'text-xs ws-connected';
+  };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.perceptions) {
+      updateDashboard(data.perceptions);
+      frameCount++;
+      fpsFrames++;
+    }
+  };
+
+  ws.onclose = () => {
+    document.getElementById('ws-indicator').className = 'w-2 h-2 rounded-full bg-red-500';
+    document.getElementById('ws-status').textContent = 'Disconnected';
+    document.getElementById('ws-status').className = 'text-xs ws-disconnected';
+    setTimeout(connect, 2000);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+// Also poll REST as fallback
+function pollRest() {
+  const host = window.location.hostname || 'localhost';
+  const port = window.location.port || '9090';
+  fetch(`http://${host}:${port}/api/perceptions`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.perceptions) {
+        updateDashboard(data.perceptions);
+        frameCount++;
+        fpsFrames++;
+      }
+    })
+    .catch(() => {});
+}
+
+// ─── Dashboard Update ────────────────────────────────────────────────────
+
+function updateDashboard(perceptions) {
+  for (const p of perceptions) {
+    switch (p.type) {
+      case 'pose': updatePose(p); break;
+      case 'vitals': updateVitals(p); break;
+      case 'presence': updatePresence(p); break;
+      case 'activity': updateActivity(p); break;
+    }
+  }
+  document.getElementById('frame-count').textContent = frameCount;
+}
+
+function updatePose(p) {
+  const kps = p.keypoints || [];
+  document.getElementById('keypoint-count').textContent = `${kps.length} keypoints`;
+  document.getElementById('pose-conf').textContent = `${(p.confidence * 100).toFixed(0)}%`;
+  document.getElementById('skeleton-type').textContent = p.skeleton?.toUpperCase() || 'COCO17';
+  drawSkeleton(kps);
+}
+
+function updateVitals(p) {
+  const heart = p.heart_bpm || 0;
+  const breath = p.breath_bpm || 0;
+  const hrv = p.hrv || 0;
+
+  document.getElementById('heart-bpm').textContent = heart.toFixed(0);
+  document.getElementById('breath-bpm').textContent = breath.toFixed(0);
+  document.getElementById('hrv-value').textContent = hrv.toFixed(0);
+
+  // Heart bar: 40-120 range
+  const heartPct = Math.min(100, Math.max(0, ((heart - 40) / 80) * 100));
+  document.getElementById('heart-fill').style.width = `${heartPct}%`;
+
+  // Breath bar: 6-30 range
+  const breathPct = Math.min(100, Math.max(0, ((breath - 6) / 24) * 100));
+  document.getElementById('breath-fill').style.width = `${breathPct}%`;
+
+  // Heartbeat animation speed
+  const beatDuration = heart > 0 ? (60 / heart) : 1;
+  document.getElementById('heart-bpm').style.animationDuration = `${beatDuration}s`;
+}
+
+function updatePresence(p) {
+  const count = p.total_occupants || 0;
+  const el = document.getElementById('occupant-count');
+  el.textContent = count;
+  el.style.color = count > 0 ? '#22c55e' : '#475569';
+}
+
+function updateActivity(p) {
+  const label = p.label || 'unknown';
+  const conf = p.confidence || 0;
+  document.getElementById('activity-label').textContent = label.charAt(0).toUpperCase() + label.slice(1);
+  document.getElementById('activity-icon').textContent = ACTIVITY_ICONS[label] || '❓';
+  document.getElementById('activity-bar').style.width = `${conf * 100}%`;
+  document.getElementById('activity-conf').textContent = `${(conf * 100).toFixed(0)}%`;
+}
+
+// ─── Skeleton Canvas Drawing ─────────────────────────────────────────────
+
+function drawSkeleton(keypoints) {
+  const canvas = document.getElementById('skeleton-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (keypoints.length === 0) {
+    ctx.fillStyle = '#475569';
+    ctx.font = '14px Inter';
+    ctx.textAlign = 'center';
+    ctx.fillText('Waiting for pose data...', W/2, H/2);
+    return;
+  }
+
+  // Normalize keypoints to canvas space
+  const xs = keypoints.map(k => k.x);
+  const ys = keypoints.map(k => k.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const rangeX = maxX - minX || 1;
+  const rangeY = maxY - minY || 1;
+  const scale = Math.min((W - 80) / rangeX, (H - 80) / rangeY);
+  const offX = (W - rangeX * scale) / 2;
+  const offY = (H - rangeY * scale) / 2;
+
+  const pts = keypoints.map(k => ({
+    x: (k.x - minX) * scale + offX,
+    y: (k.y - minY) * scale + offY,
+    conf: k.confidence,
+    name: k.name
+  }));
+
+  // Draw bones
+  ctx.lineWidth = 3;
+  for (const [i, j] of COCO17_SKELETON) {
+    if (i < pts.length && j < pts.length) {
+      const a = pts[i], b = pts[j];
+      const alpha = Math.min(a.conf, b.conf);
+      ctx.strokeStyle = `rgba(129, 140, 248, ${alpha * 0.8})`;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+  }
+
+  // Draw joints
+  for (const pt of pts) {
+    const r = 4 + pt.conf * 4;
+    ctx.fillStyle = `rgba(129, 140, 248, ${pt.conf})`;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Glow
+    ctx.fillStyle = `rgba(129, 140, 248, ${pt.conf * 0.2})`;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, r * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw nose label
+  if (pts.length > 0) {
+    ctx.fillStyle = '#818cf8';
+    ctx.font = '10px Inter';
+    ctx.textAlign = 'center';
+    ctx.fillText('●', pts[0].x, pts[0].y - 12);
+  }
+}
+
+// ─── FPS Counter ─────────────────────────────────────────────────────────
+
+setInterval(() => {
+  document.getElementById('fps-counter').textContent = fpsFrames;
+  fpsFrames = 0;
+}, 1000);
+
+// ─── Init ────────────────────────────────────────────────────────────────
+
+connect();
+// REST fallback polling every 500ms
+setInterval(pollRest, 500);
+
+// Draw initial empty skeleton
+drawSkeleton([]);
+</script>
+
+</body>
+</html>
