@@ -1,20 +1,25 @@
-/// Æther HTTP API Server
+/// Æther HTTP + WebSocket API Server
 ///
-/// REST endpoints:
-///   GET  /api/health              → system health
-///   GET  /api/perceptions         → latest perceptions
-///   GET  /api/sensors             → sensor status
+/// REST:
+///   GET  /api/health       → system health
+///   GET  /api/perceptions  → latest perceptions
+///   GET  /api/sensors      → sensor status
+///
+/// WebSocket:
+///   ws://host:port/ws/stream  → real-time perception push
 import aether/orchestrator.{type OrchestratorMsg}
+import aether/perception.{type Perception}
 import aether/serve/codec
 import gleam/bytes_tree
-import gleam/erlang/process.{type Subject}
+import gleam/erlang/process.{type Selector, type Subject}
 import gleam/http/request.{type Request}
 import gleam/http/response.{type Response}
 import gleam/json
 import gleam/list
-import mist.{type Connection, type ResponseData}
+import gleam/option.{None, Some}
+import mist.{type Connection, type ResponseData, type WebsocketConnection}
 
-/// Start the HTTP server on the given port.
+/// Start the HTTP/WebSocket server.
 pub fn start(
   port: Int,
   orchestrator: Subject(OrchestratorMsg),
@@ -38,9 +43,12 @@ fn handle_request(
     ["api", "health"] -> health_response()
     ["api", "perceptions"] -> perceptions_response(orch)
     ["api", "sensors"] -> sensors_response()
+    ["ws", "stream"] -> ws_stream(req, orch)
     _ -> not_found_response()
   }
 }
+
+// ─── REST Endpoints ─────────────────────────────────────────────────────────
 
 fn health_response() -> Response(ResponseData) {
   json_response(
@@ -78,15 +86,67 @@ fn not_found_response() -> Response(ResponseData) {
 }
 
 fn json_response(status: Int, body: json.Json) -> Response(ResponseData) {
-  let bytes =
-    body
-    |> json.to_string()
-    |> bytes_tree.from_string()
-
+  let bytes = body |> json.to_string() |> bytes_tree.from_string()
   response.new(status)
   |> response.set_header("content-type", "application/json")
   |> response.set_header("access-control-allow-origin", "*")
   |> response.set_body(mist.Bytes(bytes))
+}
+
+// ─── WebSocket: /ws/stream ──────────────────────────────────────────────────
+
+/// WebSocket state: holds the perception subscription subject.
+type WsState {
+  WsState
+}
+
+fn ws_stream(
+  req: Request(Connection),
+  orch: Subject(OrchestratorMsg),
+) -> Response(ResponseData) {
+  // Create a subject to receive perception updates from the orchestrator
+  let perception_sub: Subject(List(Perception)) = process.new_subject()
+  orchestrator.subscribe(orch, perception_sub)
+
+  mist.websocket(
+    request: req,
+    handler: ws_handler,
+    on_init: fn(_conn) {
+      // Build a selector that receives perception updates as Custom messages
+      let selector =
+        process.new_selector()
+        |> process.select(for: perception_sub)
+
+      #(WsState, Some(selector))
+    },
+    on_close: fn(_state) { Nil },
+  )
+}
+
+fn ws_handler(
+  state: WsState,
+  msg: mist.WebsocketMessage(List(Perception)),
+  conn: WebsocketConnection,
+) -> mist.Next(WsState, List(Perception)) {
+  case msg {
+    mist.Text("ping") -> {
+      let _ = mist.send_text_frame(conn, "pong")
+      mist.continue(state)
+    }
+    mist.Custom(perceptions) -> {
+      // Encode perceptions and push to client
+      let payload =
+        json.object([
+          #("perceptions", json.array(perceptions, codec.encode_perception)),
+          #("count", json.int(list.length(perceptions))),
+        ])
+        |> json.to_string()
+      let _ = mist.send_text_frame(conn, payload)
+      mist.continue(state)
+    }
+    mist.Closed | mist.Shutdown -> mist.stop()
+    _ -> mist.continue(state)
+  }
 }
 
 @external(erlang, "erlang", "integer_to_binary")
