@@ -1,0 +1,12 @@
+[package]
+name = "aether_signal"
+version = "0.1.0"
+edition = "2024"
+description = "Æther signal processing NIFs — TSFR, Hampel, Butterworth, AveCSI, SpotFi"
+
+[lib]
+name = "aether_signal"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.36"
