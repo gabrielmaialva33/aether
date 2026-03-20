@@ -1,440 +1,254 @@
 <!DOCTYPE html>
-<html class="h-full" data-kt-theme="true" lang="en">
+<html lang="en">
 <head>
-  <title>Æther — Ambient RF Perception</title>
-  <meta charset="utf-8"/>
-  <meta content="width=device-width, initial-scale=1" name="viewport"/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-  <link href="assets/vendors/keenicons/styles.bundle.css" rel="stylesheet"/>
-  <link href="assets/css/styles.css" rel="stylesheet"/>
-  <style>
-    :root { color-scheme: dark; }
-    body { background: #0f172a; }
-    .aether-glow { box-shadow: 0 0 20px rgba(99, 102, 241, 0.15); }
-    .pulse-ring { animation: pulse-ring 2s ease-out infinite; }
-    @keyframes pulse-ring {
-      0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-      100% { box-shadow: 0 0 0 20px rgba(99, 102, 241, 0); }
-    }
-    .heartbeat { animation: heartbeat 1s ease-in-out infinite; }
-    @keyframes heartbeat {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-    #skeleton-canvas { background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%); border-radius: 12px; }
-    .stat-value { font-variant-numeric: tabular-nums; }
-    .zone-active { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); }
-    .zone-empty { background: rgba(100, 116, 139, 0.05); border: 1px dashed rgba(100, 116, 139, 0.2); }
-    .ws-connected { color: #22c55e; }
-    .ws-disconnected { color: #ef4444; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Æther — RF Perception Observatory</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--void:#050508;--panel:rgba(8,5,5,.82);--panel-b:rgba(200,30,30,.12);--red:#c41e3a;--red-g:#ff2040;--red-d:#4a0a15;--grn:#00ff41;--grn-g:#39ff14;--grn-d:#0a3a12;--amb:#ff8c00;--txt:#e8e0e0;--txt2:rgba(232,224,224,.5);--txt3:rgba(232,224,224,.3);--mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--void);overflow:hidden;font-family:var(--sans);color:var(--txt);-webkit-font-smoothing:antialiased}
+canvas.bg{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0}
+#hud{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+.p{position:absolute;background:var(--panel);border:1px solid var(--panel-b);border-radius:10px;padding:16px 18px;backdrop-filter:blur(16px)}
+.ph{font-family:var(--mono);font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--txt3);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--grn);box-shadow:0 0 6px var(--grn)}
+.dot-off{background:var(--red);box-shadow:0 0 6px var(--red)}
+@keyframes pdot{0%,100%{opacity:1}50%{opacity:.3}}
+.dot-live{animation:pdot 2s infinite}
+
+/* Brand */
+#brand{position:absolute;top:22px;left:26px}
+#brand h1{font:700 34px/1 var(--sans);letter-spacing:-1px;color:var(--txt);text-shadow:0 0 40px rgba(200,30,58,.35)}
+#brand h1 b{color:var(--red-g);font-style:italic}
+#brand p{font:400 9px/1 var(--mono);letter-spacing:3px;text-transform:uppercase;color:var(--txt2);margin-top:4px}
+
+/* Status */
+#stat{position:absolute;top:22px;right:26px;display:flex;gap:10px;pointer-events:auto}
+.badge{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:16px;font:400 9px/1 var(--mono);letter-spacing:1.5px}
+.b-live{background:rgba(0,255,65,.06);border:1px solid rgba(0,255,65,.2);color:var(--grn)}
+.b-fps{background:rgba(200,30,58,.06);border:1px solid rgba(200,30,58,.15);color:var(--red-g)}
+
+/* Vitals */
+#pv{top:90px;left:26px;width:200px}
+.vr{display:flex;gap:10px;margin-bottom:14px;align-items:flex-start}
+.vi{font:600 16px/1 var(--mono);width:20px;text-align:center;margin-top:2px}
+.vd{flex:1}
+.vl{font:400 8px/1 var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px}
+.vv{font:600 32px/1 var(--mono);line-height:1}
+.vu{font:300 10px/1 var(--mono);color:var(--txt2);margin-left:2px}
+.vb{width:100%;height:2px;background:rgba(255,255,255,.04);border-radius:1px;margin-top:6px;overflow:hidden}
+.vbf{height:100%;border-radius:1px;transition:width .5s ease}
+.vb-hr{background:var(--red-g);box-shadow:0 0 6px var(--red-g)}
+.vb-br{background:var(--grn);box-shadow:0 0 6px var(--grn)}
+.vb-hrv{background:var(--amb)}
+@keyframes hb{0%,100%{transform:scale(1)}15%{transform:scale(1.15)}30%{transform:scale(.95)}45%{transform:scale(1.06)}}
+.hb{animation:hb .85s ease-in-out infinite;color:var(--red-g)}
+
+/* Signal */
+#ps{top:90px;right:26px;width:185px}
+.sr{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.025)}
+.sl{font:400 8px/1 var(--mono);letter-spacing:1.5px;color:var(--txt3);text-transform:uppercase}
+.sv{font:400 12px/1 var(--mono)}
+#spark{width:100%;height:36px;margin-top:8px}
+
+/* Skeleton */
+#skel{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none}
+
+/* Presence ring */
+#pres{position:absolute;bottom:160px;left:50%;transform:translateX(-50%);text-align:center}
+#pres-n{font:700 48px/1 var(--mono);color:var(--grn)}
+#pres-l{font:300 9px/1 var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--txt3);margin-top:4px}
+
+/* Activity */
+#pa{bottom:60px;left:26px;width:200px}
+.act-row{display:flex;align-items:center;gap:12px}
+.act-ico{font:400 22px/1 var(--mono);width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(200,30,58,.08);border:1px solid rgba(200,30,58,.15);color:var(--red-g)}
+.act-nm{font:600 16px/1 var(--sans)}
+.act-cf{font:400 10px/1 var(--mono);color:var(--txt2);margin-top:3px}
+
+/* Zones */
+#pz{bottom:60px;right:26px;width:185px}
+.zi{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-radius:6px;margin-bottom:4px;transition:all .3s}
+.za{background:rgba(0,255,65,.05);border:1px solid rgba(0,255,65,.15)}
+.ze{background:rgba(255,255,255,.015);border:1px solid rgba(255,255,255,.03)}
+.zn{font-size:12px}.zc{font:400 11px/1 var(--mono);color:var(--grn)}
+
+/* Location */
+#ploc{bottom:60px;left:50%;transform:translateX(-50%);width:160px;text-align:center}
+.loc-v{font:600 13px/1 var(--mono);color:var(--amb)}
+.loc-l{font:300 8px/1 var(--mono);letter-spacing:1.5px;color:var(--txt3);margin-top:3px;text-transform:uppercase}
+
+/* Footer */
+#foot{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font:300 8px/1 var(--mono);color:rgba(255,255,255,.15);letter-spacing:2.5px;text-transform:uppercase}
+
+/* Scanline */
+#scan{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.02) 3px,rgba(0,0,0,.02) 6px)}
+</style>
 </head>
-<body class="antialiased flex h-full text-base dark" style="background: #0f172a; color: #e2e8f0;">
+<body>
+<canvas class="bg" id="cv"></canvas>
+<div id="scan"></div>
+<div id="hud">
+  <div id="brand"><h1><b>Æ</b>ther</h1><p>RF Perception Observatory</p></div>
+  <div id="stat">
+    <div class="badge b-live"><span class="dot dot-off" id="wd"></span><span id="wl">OFFLINE</span></div>
+    <div class="badge b-fps"><span id="fv">0</span> FPS</div>
+  </div>
 
-<!-- Full page layout -->
-<div class="flex flex-col w-full min-h-screen">
+  <div class="p" id="pv">
+    <div class="ph">Vital Signs<span class="dot dot-live"></span></div>
+    <div class="vr"><div class="vi" style="color:var(--red-g)">&#9829;</div><div class="vd"><div class="vl">Heart Rate</div><div class="vv"><span id="hr" class="hb">--</span><span class="vu">BPM</span></div><div class="vb"><div id="hrb" class="vbf vb-hr" style="width:0"></div></div></div></div>
+    <div class="vr"><div class="vi" style="color:var(--grn)">&#9678;</div><div class="vd"><div class="vl">Respiration</div><div class="vv"><span id="br" style="color:var(--grn)">--</span><span class="vu">RPM</span></div><div class="vb"><div id="brb" class="vbf vb-br" style="width:0"></div></div></div></div>
+    <div class="vr"><div class="vi" style="color:var(--amb)">&#9830;</div><div class="vd"><div class="vl">HRV</div><div class="vv"><span id="hv" style="color:var(--amb)">--</span><span class="vu">ms</span></div><div class="vb"><div id="hvb" class="vbf vb-hrv" style="width:0"></div></div></div></div>
+  </div>
 
-  <!-- Header -->
-  <header class="flex items-center justify-between px-8 py-4 border-b" style="border-color: #1e293b; background: #0f172a;">
-    <div class="flex items-center gap-4">
-      <div class="text-2xl font-bold" style="color: #818cf8;">Æ</div>
-      <div>
-        <h1 class="text-lg font-semibold" style="color: #f1f5f9;">Æther</h1>
-        <p class="text-xs" style="color: #64748b;">Ambient RF Perception System</p>
-      </div>
-    </div>
-    <div class="flex items-center gap-6">
-      <div class="flex items-center gap-2">
-        <span id="ws-indicator" class="w-2 h-2 rounded-full bg-red-500"></span>
-        <span id="ws-status" class="text-xs ws-disconnected">Disconnected</span>
-      </div>
-      <div class="text-xs" style="color: #64748b;">
-        <span id="fps-counter">0</span> fps
-      </div>
-    </div>
-  </header>
+  <div class="p" id="ps">
+    <div class="ph">RF Signal<span class="dot dot-live"></span></div>
+    <div class="sr"><span class="sl">RSSI</span><span class="sv" id="rssi">-- dBm</span></div>
+    <div class="sr"><span class="sl">Channel</span><span class="sv">4</span></div>
+    <div class="sr"><span class="sl">Persons</span><span class="sv"><span id="pn">0</span><span id="pd" style="margin-left:6px"></span></span></div>
+    <div class="sr"><span class="sl">Frames</span><span class="sv" id="fc">0</span></div>
+    <canvas id="spark" width="165" height="36"></canvas>
+  </div>
 
-  <!-- Main content -->
-  <div class="flex-1 p-6 grid grid-cols-12 gap-5">
+  <canvas id="skel" width="500" height="520"></canvas>
 
-    <!-- Left: Skeleton + Activity -->
-    <div class="col-span-12 lg:col-span-5 flex flex-col gap-5">
+  <div id="pres">
+    <div id="pres-n">0</div>
+    <div id="pres-l">Occupants detected</div>
+  </div>
 
-      <!-- Pose Skeleton -->
-      <div class="rounded-xl p-5 aether-glow" style="background: #1e293b;">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-sm font-semibold" style="color: #f1f5f9;">Pose Estimation</h2>
-          <span id="pose-conf" class="text-xs px-2 py-0.5 rounded-full" style="background: #312e81; color: #a5b4fc;">--</span>
-        </div>
-        <canvas id="skeleton-canvas" width="480" height="400" class="w-full"></canvas>
-        <div class="flex justify-between mt-3 text-xs" style="color: #64748b;">
-          <span id="keypoint-count">0 keypoints</span>
-          <span id="skeleton-type">COCO17</span>
-        </div>
-      </div>
-
-      <!-- Activity -->
-      <div class="rounded-xl p-5" style="background: #1e293b;">
-        <h2 class="text-sm font-semibold mb-3" style="color: #f1f5f9;">Activity Recognition</h2>
-        <div class="flex items-center gap-4">
-          <div id="activity-icon" class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style="background: #312e81;">
-            🧘
-          </div>
-          <div>
-            <div id="activity-label" class="text-lg font-bold" style="color: #f1f5f9;">--</div>
-            <div class="flex items-center gap-2 mt-1">
-              <div class="w-24 h-1.5 rounded-full" style="background: #334155;">
-                <div id="activity-bar" class="h-1.5 rounded-full" style="background: #818cf8; width: 0%;"></div>
-              </div>
-              <span id="activity-conf" class="text-xs" style="color: #64748b;">0%</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Center: Vitals -->
-    <div class="col-span-12 lg:col-span-4 flex flex-col gap-5">
-
-      <!-- Heart Rate -->
-      <div class="rounded-xl p-5" style="background: #1e293b;">
-        <div class="flex items-center justify-between mb-2">
-          <h2 class="text-sm font-semibold" style="color: #f1f5f9;">Heart Rate</h2>
-          <span class="text-xs" style="color: #64748b;">BPM</span>
-        </div>
-        <div class="flex items-end gap-3">
-          <div id="heart-bpm" class="text-5xl font-bold stat-value heartbeat" style="color: #f43f5e;">--</div>
-          <div class="text-sm mb-2" style="color: #64748b;">bpm</div>
-        </div>
-        <div id="heart-bar" class="w-full h-2 rounded-full mt-4" style="background: #334155;">
-          <div id="heart-fill" class="h-2 rounded-full transition-all duration-500" style="background: linear-gradient(90deg, #f43f5e, #ec4899); width: 0%;"></div>
-        </div>
-        <div class="flex justify-between mt-2 text-xs" style="color: #475569;">
-          <span>40</span><span>80</span><span>120</span>
-        </div>
-      </div>
-
-      <!-- Breathing Rate -->
-      <div class="rounded-xl p-5" style="background: #1e293b;">
-        <div class="flex items-center justify-between mb-2">
-          <h2 class="text-sm font-semibold" style="color: #f1f5f9;">Breathing Rate</h2>
-          <span class="text-xs" style="color: #64748b;">BPM</span>
-        </div>
-        <div class="flex items-end gap-3">
-          <div id="breath-bpm" class="text-5xl font-bold stat-value" style="color: #06b6d4;">--</div>
-          <div class="text-sm mb-2" style="color: #64748b;">bpm</div>
-        </div>
-        <div class="w-full h-2 rounded-full mt-4" style="background: #334155;">
-          <div id="breath-fill" class="h-2 rounded-full transition-all duration-500" style="background: linear-gradient(90deg, #06b6d4, #22d3ee); width: 0%;"></div>
-        </div>
-        <div class="flex justify-between mt-2 text-xs" style="color: #475569;">
-          <span>6</span><span>16</span><span>30</span>
-        </div>
-      </div>
-
-      <!-- HRV -->
-      <div class="rounded-xl p-5" style="background: #1e293b;">
-        <div class="flex items-center justify-between mb-2">
-          <h2 class="text-sm font-semibold" style="color: #f1f5f9;">Heart Rate Variability</h2>
-          <span class="text-xs" style="color: #64748b;">ms</span>
-        </div>
-        <div class="flex items-end gap-3">
-          <div id="hrv-value" class="text-4xl font-bold stat-value" style="color: #a78bfa;">--</div>
-          <div class="text-sm mb-1" style="color: #64748b;">ms</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Right: Presence + Zones + Sensors -->
-    <div class="col-span-12 lg:col-span-3 flex flex-col gap-5">
-
-      <!-- Presence -->
-      <div class="rounded-xl p-5 pulse-ring" style="background: #1e293b;">
-        <h2 class="text-sm font-semibold mb-3" style="color: #f1f5f9;">Presence</h2>
-        <div class="text-center">
-          <div id="occupant-count" class="text-6xl font-bold" style="color: #22c55e;">0</div>
-          <div class="text-sm mt-1" style="color: #64748b;">occupant(s) detected</div>
-        </div>
-      </div>
-
-      <!-- Zones -->
-      <div class="rounded-xl p-5" style="background: #1e293b;">
-        <h2 class="text-sm font-semibold mb-3" style="color: #f1f5f9;">Zones</h2>
-        <div class="flex flex-col gap-2">
-          <div id="zone-sala" class="zone-empty rounded-lg p-3 flex items-center justify-between">
-            <span class="text-sm">Sala</span>
-            <span class="text-xs" style="color: #64748b;">--</span>
-          </div>
-          <div id="zone-quarto" class="zone-empty rounded-lg p-3 flex items-center justify-between">
-            <span class="text-sm">Quarto</span>
-            <span class="text-xs" style="color: #64748b;">--</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Sensor -->
-      <div class="rounded-xl p-5" style="background: #1e293b;">
-        <h2 class="text-sm font-semibold mb-3" style="color: #f1f5f9;">ESP32 Sensor</h2>
-        <div class="space-y-2 text-xs">
-          <div class="flex justify-between">
-            <span style="color: #64748b;">Status</span>
-            <span id="sensor-status" style="color: #22c55e;">● Online</span>
-          </div>
-          <div class="flex justify-between">
-            <span style="color: #64748b;">IP</span>
-            <span style="color: #e2e8f0;">192.168.1.6</span>
-          </div>
-          <div class="flex justify-between">
-            <span style="color: #64748b;">RSSI</span>
-            <span id="sensor-rssi" style="color: #e2e8f0;">--</span>
-          </div>
-          <div class="flex justify-between">
-            <span style="color: #64748b;">Channel</span>
-            <span style="color: #e2e8f0;">4</span>
-          </div>
-          <div class="flex justify-between">
-            <span style="color: #64748b;">Frames</span>
-            <span id="frame-count" style="color: #e2e8f0;">0</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Events -->
-      <div class="rounded-xl p-5 flex-1" style="background: #1e293b;">
-        <h2 class="text-sm font-semibold mb-3" style="color: #f1f5f9;">Events</h2>
-        <div id="event-list" class="space-y-2 text-xs max-h-40 overflow-y-auto" style="color: #94a3b8;">
-          <div class="italic" style="color: #475569;">Waiting for data...</div>
-        </div>
-      </div>
+  <div class="p" id="pa">
+    <div class="ph">Activity</div>
+    <div class="act-row">
+      <div class="act-ico" id="ai">&#9632;</div>
+      <div><div class="act-nm" id="an">--</div><div class="act-cf" id="ac">0% confidence</div></div>
     </div>
   </div>
 
-  <!-- Footer -->
-  <footer class="px-8 py-3 border-t text-xs flex justify-between" style="border-color: #1e293b; color: #475569;">
-    <span>Æther v0.1.0 — Ambient RF Perception System</span>
-    <span>Gleam/OTP + Rust NIFs + ESP32 CSI</span>
-  </footer>
+  <div class="p" id="pz">
+    <div class="ph">Zones</div>
+    <div class="zi ze" id="zs"><span class="zn">Sala</span><span class="zc">--</span></div>
+    <div class="zi ze" id="zq"><span class="zn">Quarto</span><span class="zc">--</span></div>
+  </div>
+
+  <div class="p" id="ploc">
+    <div class="loc-v" id="locv">-- , -- , --</div>
+    <div class="loc-l">Position (x, y, z)</div>
+  </div>
+
+  <div id="foot">Æther v0.1.0 &mdash; Gleam/OTP + Rust NIFs + ESP32 CSI</div>
 </div>
 
 <script>
-// ─── Æther Dashboard — WebSocket Real-time ───────────────────────────────
+const ACT_ICO={idle:'\u25A0',walking:'\u25B6',sitting_down:'\u25BC',standing_up:'\u25B2',waving:'\u25C6',falling:'\u26A0'};
+const BONES=[[0,1],[0,2],[1,3],[2,4],[5,6],[5,7],[7,9],[6,8],[8,10],[5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16]];
+let fc=0,ff=0,rssiH=[];
 
-const ACTIVITY_ICONS = {
-  idle: '🧘', walking: '🚶', sitting_down: '🪑',
-  standing_up: '🧍', waving: '👋', falling: '⚠️', unknown: '❓'
-};
+// ─── Void Canvas ─────────────────────────────────────────────────────
+const cv=document.getElementById('cv'),cx=cv.getContext('2d');
+let pts=[];
+function initV(){
+  cv.width=innerWidth;cv.height=innerHeight;pts=[];
+  for(let i=0;i<300;i++)pts.push({x:Math.random()*cv.width,y:Math.random()*cv.height,vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25,r:Math.random()*1.2+.2,a:Math.random()*.3+.05,c:Math.random()>.55?'200,30,58':'0,255,65'});
+}
+let vt=0;
+function renderV(){
+  vt+=.004;
+  cx.fillStyle='rgba(5,5,8,.12)';cx.fillRect(0,0,cv.width,cv.height);
+  const mx=cv.width/2,my=cv.height/2;
+  // RF rings
+  for(let i=0;i<6;i++){const r=(vt*50+i*70)%500;const a=Math.max(0,.06-r/8000);cx.beginPath();cx.arc(mx,my,r,0,Math.PI*2);cx.strokeStyle=`rgba(200,30,58,${a})`;cx.lineWidth=.8;cx.stroke()}
+  // Green scan ring
+  for(let i=0;i<3;i++){const r=(vt*35+i*120+250)%600;const a=Math.max(0,.04-r/15000);cx.beginPath();cx.arc(mx,my,r,0,Math.PI*2);cx.strokeStyle=`rgba(0,255,65,${a})`;cx.lineWidth=.5;cx.stroke()}
+  // Particles
+  for(const p of pts){p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=cv.width;if(p.x>cv.width)p.x=0;if(p.y<0)p.y=cv.height;if(p.y>cv.height)p.y=0;const fl=.6+.4*Math.sin(vt*2.5+p.x*.008);cx.beginPath();cx.arc(p.x,p.y,p.r,0,Math.PI*2);cx.fillStyle=`rgba(${p.c},${p.a*fl})`;cx.fill()}
+  // Connections
+  for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<90){const a=(1-d/90)*.04;cx.beginPath();cx.moveTo(pts[i].x,pts[i].y);cx.lineTo(pts[j].x,pts[j].y);cx.strokeStyle=`rgba(${pts[i].c},${a})`;cx.lineWidth=.4;cx.stroke()}}
+  requestAnimationFrame(renderV);
+}
 
-const COCO17_SKELETON = [
-  [0,1],[0,2],[1,3],[2,4],        // head
-  [5,6],                           // shoulders
-  [5,7],[7,9],[6,8],[8,10],       // arms
-  [5,11],[6,12],[11,12],          // torso
-  [11,13],[13,15],[12,14],[14,16] // legs
-];
+// ─── Skeleton ────────────────────────────────────────────────────────
+const sc=document.getElementById('skel'),sx=sc.getContext('2d');
+function drawSkel(kps){
+  sx.clearRect(0,0,sc.width,sc.height);
+  if(!kps||!kps.length){sx.fillStyle='rgba(200,30,58,.12)';sx.font='11px JetBrains Mono';sx.textAlign='center';sx.fillText('SCANNING',sc.width/2,sc.height/2);const t=Date.now()/1000;sx.beginPath();sx.arc(sc.width/2,sc.height/2,50+Math.sin(t*2)*15,0,Math.PI*2);sx.strokeStyle=`rgba(200,30,58,${.08+Math.sin(t*3)*.03})`;sx.lineWidth=.8;sx.stroke();return}
+  const xs=kps.map(k=>k.x),ys=kps.map(k=>k.y);
+  const mnx=Math.min(...xs),mxx=Math.max(...xs),mny=Math.min(...ys),mxy=Math.max(...ys);
+  const rx=mxx-mnx||1,ry=mxy-mny||1,s=Math.min((sc.width-120)/rx,(sc.height-120)/ry);
+  const ox=(sc.width-rx*s)/2,oy=(sc.height-ry*s)/2;
+  const p=kps.map(k=>({x:(k.x-mnx)*s+ox,y:(k.y-mny)*s+oy,c:k.confidence,n:k.name}));
+  // Glow
+  const g=sx.createRadialGradient(sc.width/2,sc.height/2,10,sc.width/2,sc.height/2,180);
+  g.addColorStop(0,'rgba(200,30,58,.04)');g.addColorStop(1,'rgba(0,0,0,0)');sx.fillStyle=g;sx.fillRect(0,0,sc.width,sc.height);
+  // Bones - green
+  for(const[i,j]of BONES){if(i<p.length&&j<p.length){const a=p[i],b=p[j],al=Math.min(a.c,b.c);sx.shadowBlur=6;sx.shadowColor=`rgba(0,255,65,${al*.4})`;sx.strokeStyle=`rgba(0,255,65,${al*.65})`;sx.lineWidth=1.8;sx.beginPath();sx.moveTo(a.x,a.y);sx.lineTo(b.x,b.y);sx.stroke();sx.shadowBlur=0}}
+  // Joints - red
+  for(const pt of p){const r=2.5+pt.c*3.5;sx.shadowBlur=10;sx.shadowColor=`rgba(255,32,64,${pt.c*.5})`;sx.fillStyle=`rgba(255,32,64,${pt.c*.85})`;sx.beginPath();sx.arc(pt.x,pt.y,r,0,Math.PI*2);sx.fill();sx.shadowBlur=0;sx.strokeStyle=`rgba(255,32,64,${pt.c*.15})`;sx.lineWidth=.5;sx.beginPath();sx.arc(pt.x,pt.y,r*3,0,Math.PI*2);sx.stroke()}
+}
 
-let ws = null;
-let frameCount = 0;
-let lastFrameTime = Date.now();
-let fpsFrames = 0;
+// ─── RSSI Sparkline ──────────────────────────────────────────────────
+const rc=document.getElementById('spark'),rx=rc.getContext('2d');
+function drawSpark(){
+  rx.clearRect(0,0,rc.width,rc.height);if(rssiH.length<2)return;
+  rx.beginPath();for(let i=0;i<rssiH.length;i++){const x=i/(rssiH.length-1)*rc.width,y=rc.height-((rssiH[i]+80)/60)*rc.height;i===0?rx.moveTo(x,y):rx.lineTo(x,y)}
+  rx.strokeStyle='rgba(0,255,65,.45)';rx.lineWidth=1.2;rx.shadowBlur=3;rx.shadowColor='rgba(0,255,65,.25)';rx.stroke();rx.shadowBlur=0;
+}
 
-// ─── WebSocket Connection ────────────────────────────────────────────────
-
-function connect() {
-  const host = window.location.hostname || 'localhost';
-  const port = window.location.port || '9090';
-  ws = new WebSocket(`ws://${host}:${port}/ws/stream`);
-
-  ws.onopen = () => {
-    document.getElementById('ws-indicator').className = 'w-2 h-2 rounded-full bg-green-500';
-    document.getElementById('ws-status').textContent = 'Connected';
-    document.getElementById('ws-status').className = 'text-xs ws-connected';
-  };
-
-  ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.perceptions) {
-      updateDashboard(data.perceptions);
-      frameCount++;
-      fpsFrames++;
+// ─── Data Update ─────────────────────────────────────────────────────
+function upd(perceptions){
+  for(const p of perceptions){
+    if(p.type==='pose'){drawSkel(p.keypoints||[]);document.getElementById('skel').style.opacity='1'}
+    if(p.type==='vitals'){
+      const hr=p.heart_bpm||0,br=p.breath_bpm||0,hv=p.hrv||0;
+      document.getElementById('hr').textContent=hr>0?hr.toFixed(0):'--';
+      document.getElementById('br').textContent=br>0?br.toFixed(0):'--';
+      document.getElementById('hv').textContent=hv>0?hv.toFixed(0):'--';
+      document.getElementById('hrb').style.width=`${Math.min(100,((hr-40)/80)*100)}%`;
+      document.getElementById('brb').style.width=`${Math.min(100,((br-6)/24)*100)}%`;
+      document.getElementById('hvb').style.width=`${Math.min(100,hv)}%`;
+      if(hr>0)document.getElementById('hr').style.animationDuration=`${60/hr}s`;
     }
-  };
-
-  ws.onclose = () => {
-    document.getElementById('ws-indicator').className = 'w-2 h-2 rounded-full bg-red-500';
-    document.getElementById('ws-status').textContent = 'Disconnected';
-    document.getElementById('ws-status').className = 'text-xs ws-disconnected';
-    setTimeout(connect, 2000);
-  };
-
-  ws.onerror = () => ws.close();
-}
-
-// Also poll REST as fallback
-function pollRest() {
-  const host = window.location.hostname || 'localhost';
-  const port = window.location.port || '9090';
-  fetch(`http://${host}:${port}/api/perceptions`)
-    .then(r => r.json())
-    .then(data => {
-      if (data.perceptions) {
-        updateDashboard(data.perceptions);
-        frameCount++;
-        fpsFrames++;
-      }
-    })
-    .catch(() => {});
-}
-
-// ─── Dashboard Update ────────────────────────────────────────────────────
-
-function updateDashboard(perceptions) {
-  for (const p of perceptions) {
-    switch (p.type) {
-      case 'pose': updatePose(p); break;
-      case 'vitals': updateVitals(p); break;
-      case 'presence': updatePresence(p); break;
-      case 'activity': updateActivity(p); break;
+    if(p.type==='presence'){
+      const n=p.total_occupants||0;
+      document.getElementById('pres-n').textContent=n;
+      document.getElementById('pres-n').style.color=n>0?'var(--grn)':'var(--txt3)';
+      document.getElementById('pn').textContent=n;
+      const d=document.getElementById('pd');d.innerHTML='';
+      for(let i=0;i<n;i++){const s=document.createElement('span');s.style.cssText='display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--grn);box-shadow:0 0 4px var(--grn);margin-right:3px';d.appendChild(s)}
     }
-  }
-  document.getElementById('frame-count').textContent = frameCount;
-}
-
-function updatePose(p) {
-  const kps = p.keypoints || [];
-  document.getElementById('keypoint-count').textContent = `${kps.length} keypoints`;
-  document.getElementById('pose-conf').textContent = `${(p.confidence * 100).toFixed(0)}%`;
-  document.getElementById('skeleton-type').textContent = p.skeleton?.toUpperCase() || 'COCO17';
-  drawSkeleton(kps);
-}
-
-function updateVitals(p) {
-  const heart = p.heart_bpm || 0;
-  const breath = p.breath_bpm || 0;
-  const hrv = p.hrv || 0;
-
-  document.getElementById('heart-bpm').textContent = heart.toFixed(0);
-  document.getElementById('breath-bpm').textContent = breath.toFixed(0);
-  document.getElementById('hrv-value').textContent = hrv.toFixed(0);
-
-  // Heart bar: 40-120 range
-  const heartPct = Math.min(100, Math.max(0, ((heart - 40) / 80) * 100));
-  document.getElementById('heart-fill').style.width = `${heartPct}%`;
-
-  // Breath bar: 6-30 range
-  const breathPct = Math.min(100, Math.max(0, ((breath - 6) / 24) * 100));
-  document.getElementById('breath-fill').style.width = `${breathPct}%`;
-
-  // Heartbeat animation speed
-  const beatDuration = heart > 0 ? (60 / heart) : 1;
-  document.getElementById('heart-bpm').style.animationDuration = `${beatDuration}s`;
-}
-
-function updatePresence(p) {
-  const count = p.total_occupants || 0;
-  const el = document.getElementById('occupant-count');
-  el.textContent = count;
-  el.style.color = count > 0 ? '#22c55e' : '#475569';
-}
-
-function updateActivity(p) {
-  const label = p.label || 'unknown';
-  const conf = p.confidence || 0;
-  document.getElementById('activity-label').textContent = label.charAt(0).toUpperCase() + label.slice(1);
-  document.getElementById('activity-icon').textContent = ACTIVITY_ICONS[label] || '❓';
-  document.getElementById('activity-bar').style.width = `${conf * 100}%`;
-  document.getElementById('activity-conf').textContent = `${(conf * 100).toFixed(0)}%`;
-}
-
-// ─── Skeleton Canvas Drawing ─────────────────────────────────────────────
-
-function drawSkeleton(keypoints) {
-  const canvas = document.getElementById('skeleton-canvas');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width;
-  const H = canvas.height;
-
-  ctx.clearRect(0, 0, W, H);
-
-  if (keypoints.length === 0) {
-    ctx.fillStyle = '#475569';
-    ctx.font = '14px Inter';
-    ctx.textAlign = 'center';
-    ctx.fillText('Waiting for pose data...', W/2, H/2);
-    return;
-  }
-
-  // Normalize keypoints to canvas space
-  const xs = keypoints.map(k => k.x);
-  const ys = keypoints.map(k => k.y);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
-  const rangeX = maxX - minX || 1;
-  const rangeY = maxY - minY || 1;
-  const scale = Math.min((W - 80) / rangeX, (H - 80) / rangeY);
-  const offX = (W - rangeX * scale) / 2;
-  const offY = (H - rangeY * scale) / 2;
-
-  const pts = keypoints.map(k => ({
-    x: (k.x - minX) * scale + offX,
-    y: (k.y - minY) * scale + offY,
-    conf: k.confidence,
-    name: k.name
-  }));
-
-  // Draw bones
-  ctx.lineWidth = 3;
-  for (const [i, j] of COCO17_SKELETON) {
-    if (i < pts.length && j < pts.length) {
-      const a = pts[i], b = pts[j];
-      const alpha = Math.min(a.conf, b.conf);
-      ctx.strokeStyle = `rgba(129, 140, 248, ${alpha * 0.8})`;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
+    if(p.type==='activity'){
+      const l=p.label||'--';
+      document.getElementById('an').textContent=l.charAt(0).toUpperCase()+l.slice(1);
+      document.getElementById('ai').textContent=ACT_ICO[l]||'\u25A0';
+      document.getElementById('ac').textContent=`${((p.confidence||0)*100).toFixed(0)}% confidence`;
+    }
+    if(p.type==='location'){
+      const x=(p.x||0).toFixed(1),y=(p.y||0).toFixed(1),z=(p.z||0).toFixed(1);
+      document.getElementById('locv').textContent=`${x} , ${y} , ${z}`;
     }
   }
-
-  // Draw joints
-  for (const pt of pts) {
-    const r = 4 + pt.conf * 4;
-    ctx.fillStyle = `rgba(129, 140, 248, ${pt.conf})`;
-    ctx.beginPath();
-    ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Glow
-    ctx.fillStyle = `rgba(129, 140, 248, ${pt.conf * 0.2})`;
-    ctx.beginPath();
-    ctx.arc(pt.x, pt.y, r * 2.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Draw nose label
-  if (pts.length > 0) {
-    ctx.fillStyle = '#818cf8';
-    ctx.font = '10px Inter';
-    ctx.textAlign = 'center';
-    ctx.fillText('●', pts[0].x, pts[0].y - 12);
-  }
+  fc++;ff++;document.getElementById('fc').textContent=fc;
 }
 
-// ─── FPS Counter ─────────────────────────────────────────────────────────
+// ─── Network ─────────────────────────────────────────────────────────
+function conn(){
+  const h=location.hostname||'localhost',p=location.port||'9090';
+  const ws=new WebSocket(`ws://${h}:${p}/ws/stream`);
+  ws.onopen=()=>{document.getElementById('wd').className='dot dot-live';document.getElementById('wl').textContent='LIVE'};
+  ws.onmessage=e=>{const d=JSON.parse(e.data);if(d.perceptions)upd(d.perceptions)};
+  ws.onclose=()=>{document.getElementById('wd').className='dot dot-off';document.getElementById('wl').textContent='OFFLINE';setTimeout(conn,2000)};
+  ws.onerror=()=>ws.close();
+}
+function poll(){
+  const h=location.hostname||'localhost',p=location.port||'9090';
+  fetch(`http://${h}:${p}/api/perceptions`).then(r=>r.json()).then(d=>{if(d.perceptions)upd(d.perceptions)}).catch(()=>{});
+}
+setInterval(()=>{document.getElementById('fv').textContent=ff;ff=0},1000);
 
-setInterval(() => {
-  document.getElementById('fps-counter').textContent = fpsFrames;
-  fpsFrames = 0;
-}, 1000);
-
-// ─── Init ────────────────────────────────────────────────────────────────
-
-connect();
-// REST fallback polling every 500ms
-setInterval(pollRest, 500);
-
-// Draw initial empty skeleton
-drawSkeleton([]);
+addEventListener('resize',initV);initV();renderV();conn();setInterval(poll,400);drawSkel([]);
 </script>
-
 </body>
 </html>
