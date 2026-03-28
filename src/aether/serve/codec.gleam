@@ -1,3 +1,4 @@
+import aether/orchestrator.{type CsiSnapshot, type NodeHealth}
 import aether/perception.{
   type Event, type Keypoint, type Perception, Activity, Coco17, CustomTopology,
   FallDetected, FreeformPerception, Halpe26, Location, PersonEntered, PersonLeft,
@@ -74,6 +75,22 @@ fn skeleton_name(s) -> String {
     Halpe26 -> "halpe26"
     CustomTopology(_, _) -> "custom"
   }
+}
+
+pub fn encode_csi_raw(csi: CsiSnapshot) -> Json {
+  json.object([
+    #("amplitudes", json.array(csi.amplitudes, json.float)),
+    #("source", json.string(csi.source)),
+    #("subcarriers", json.int(csi.subcarriers)),
+  ])
+}
+
+pub fn encode_node_health(nh: NodeHealth) -> Json {
+  json.object([
+    #("sensor_id", json.string(nh.sensor_id)),
+    #("online", json.bool(nh.is_online)),
+    #("frames", json.int(nh.frames_processed)),
+  ])
 }
 
 pub fn encode_event(e: Event) -> Json {

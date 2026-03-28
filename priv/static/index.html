@@ -8,10 +8,11 @@
 <style>
 :root{--void:#050508;--p:rgba(8,5,5,.88);--pb:rgba(200,30,30,.12);--r:#c41e3a;--rg:#ff2040;--rd:#4a0a15;--g:#00ff41;--gg:#39ff14;--gd:#0a3a12;--a:#ff8c00;--c:#00d4ff;--t:#e8e0e0;--t2:rgba(232,224,224,.5);--t3:rgba(232,224,224,.3);--m:'JetBrains Mono',monospace;--s:'Inter',sans-serif;--rad:8px}
 *{margin:0;padding:0;box-sizing:border-box}body{background:var(--void);font-family:var(--s);color:var(--t);-webkit-font-smoothing:antialiased;overflow:hidden;height:100vh}
-canvas.bg{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0}
-#scan{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.015) 3px,rgba(0,0,0,.015) 6px)}
 
-/* Header */
+/* ─── 3D Viewport ─────────────────────────────────────────────────── */
+#viewport{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;display:block}
+
+/* ─── Header ──────────────────────────────────────────────────────── */
 .hdr{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:12px 22px;background:var(--p);border-bottom:1px solid var(--pb);backdrop-filter:blur(14px)}
 .hdr-l{display:flex;align-items:center;gap:14px}
 .logo{font:700 22px/1 var(--s);color:var(--t)}
@@ -23,22 +24,13 @@ canvas.bg{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0}
 .dt{width:6px;height:6px;border-radius:50%}.dt-on{background:var(--g);box-shadow:0 0 6px var(--g);animation:pd 2s infinite}.dt-off{background:var(--r);box-shadow:0 0 4px var(--r)}
 @keyframes pd{0%,100%{opacity:1}50%{opacity:.3}}
 
-/* Main Grid */
-.grid{position:fixed;top:48px;left:0;right:0;bottom:0;display:grid;grid-template-columns:1fr 260px;grid-template-rows:1fr;gap:0;z-index:10}
-
-/* Skeleton Area */
-.skel-area{position:relative;overflow:hidden}
-#skel{position:absolute;top:0;left:0;width:100%;height:100%}
-.skel-label{position:absolute;bottom:12px;left:14px;font:400 10px/1 var(--m);color:var(--t3);letter-spacing:1px}
-.skel-conf{position:absolute;top:12px;right:14px;font:400 10px/1 var(--m);padding:3px 8px;border-radius:10px;background:rgba(200,30,58,.1);border:1px solid rgba(200,30,58,.15);color:var(--rg)}
-
-/* Side Panel */
-.side{overflow-y:auto;background:var(--p);border-left:1px solid var(--pb);display:flex;flex-direction:column;gap:2px;padding:6px}
+/* ─── Side Panel (HUD overlay) ────────────────────────────────────── */
+.side{position:fixed;top:48px;right:0;bottom:30px;width:260px;z-index:15;overflow-y:auto;background:var(--p);border-left:1px solid var(--pb);backdrop-filter:blur(16px);display:flex;flex-direction:column;gap:2px;padding:6px}
 .pnl{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.025)}
 .pnl-h{font:400 9px/1 var(--m);letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
 .pnl-h .dt{width:4px;height:4px}
 
-/* Vitals */
+/* ─── Vitals ──────────────────────────────────────────────────────── */
 .vr{display:flex;gap:8px;margin-bottom:10px;align-items:flex-start}
 .vi{font:600 14px/1 var(--m);width:16px;text-align:center;margin-top:1px}
 .vd{flex:1}.vl{font:400 8px/1 var(--m);letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:3px}
@@ -49,16 +41,16 @@ canvas.bg{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0}
 @keyframes hb{0%,100%{transform:scale(1)}15%{transform:scale(1.12)}30%{transform:scale(.96)}45%{transform:scale(1.04)}}
 .hb{animation:hb .85s ease-in-out infinite;display:inline-block}
 
-/* Signal rows */
+/* ─── Signal rows ─────────────────────────────────────────────────── */
 .sr{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.02)}
 .sl{font:400 8px/1 var(--m);letter-spacing:1px;color:var(--t3);text-transform:uppercase}.sv{font:400 11px/1 var(--m)}
 
-/* CSI Heatmap */
+/* ─── CSI Heatmap ─────────────────────────────────────────────────── */
 .hm-wrap{border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,.03)}
 .hm-wrap canvas{display:block;width:100%;height:80px}
 .hm-axis{display:flex;justify-content:space-between;font:300 7px/1 var(--m);color:var(--t3);margin-top:3px}
 
-/* Pipeline */
+/* ─── Pipeline ────────────────────────────────────────────────────── */
 .pipe{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
 .pipe-s{font:400 8px/1 var(--m);padding:3px 7px;border-radius:4px;background:rgba(0,255,65,.05);border:1px solid rgba(0,255,65,.12);color:var(--g);transition:all .3s}
 .pipe-s.active{background:rgba(0,255,65,.12);box-shadow:0 0 6px rgba(0,255,65,.2)}
@@ -66,42 +58,47 @@ canvas.bg{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0}
 .pipe-stats{display:flex;gap:10px;margin-top:6px;font:400 8px/1 var(--m);color:var(--t2)}
 .pipe-stats span b{font-weight:400}
 
-/* Latency */
+/* ─── Latency ─────────────────────────────────────────────────────── */
 .lat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .lat-item{text-align:center;padding:6px;border-radius:4px;background:rgba(255,255,255,.015)}
 .lat-v{font:600 16px/1 var(--m);color:var(--c)}.lat-u{font:300 8px/1 var(--m);color:var(--t3);margin-top:2px}
 
-/* Presence */
+/* ─── Presence ────────────────────────────────────────────────────── */
 .pres-row{display:flex;align-items:center;gap:10px}
 .pres-n{font:700 36px/1 var(--m);color:var(--g)}
 .pres-dots{display:flex;gap:3px;flex-wrap:wrap}
 .pd{width:8px;height:8px;border-radius:50%;background:var(--g);box-shadow:0 0 5px var(--g)}
 
-/* Activity */
+/* ─── Activity ────────────────────────────────────────────────────── */
 .act-row{display:flex;align-items:center;gap:10px}
 .act-i{font:400 18px/1 var(--m);width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(200,30,58,.06);border:1px solid rgba(200,30,58,.12);color:var(--rg)}
 .act-n{font:600 14px/1 var(--s)}.act-c{font:400 9px/1 var(--m);color:var(--t2);margin-top:2px}
 
-/* Location */
+/* ─── Location ────────────────────────────────────────────────────── */
 .loc-v{font:600 12px/1 var(--m);color:var(--a)}.loc-l{font:300 8px/1 var(--m);color:var(--t3);margin-top:2px}
 
-/* RSSI Spark */
+/* ─── RSSI Spark ──────────────────────────────────────────────────── */
 .spark-wrap{margin-top:6px}
 .spark-wrap canvas{display:block;width:100%;height:32px}
 
-/* Footer */
-.foot{position:fixed;bottom:0;left:0;right:0;z-index:20;padding:6px 22px;background:var(--p);border-top:1px solid var(--pb);display:flex;justify-content:space-between;font:300 8px/1 var(--m);color:rgba(255,255,255,.15);letter-spacing:2px;text-transform:uppercase}
+/* ─── Footer ──────────────────────────────────────────────────────── */
+.foot{position:fixed;bottom:0;left:0;right:0;z-index:20;padding:6px 22px;background:var(--p);border-top:1px solid var(--pb);backdrop-filter:blur(14px);display:flex;justify-content:space-between;font:300 8px/1 var(--m);color:rgba(255,255,255,.15);letter-spacing:2px;text-transform:uppercase}
+
+/* ─── Controls hint ───────────────────────────────────────────────── */
+.controls-hint{position:fixed;bottom:36px;left:22px;z-index:15;font:300 8px/1 var(--m);color:rgba(255,255,255,.12);letter-spacing:1px;line-height:1.6}
 </style>
 </head>
 <body>
-<canvas class="bg" id="cv"></canvas>
-<div id="scan"></div>
+
+<!-- 3D Viewport -->
+<canvas id="viewport"></canvas>
+<!-- scanline overlay removed -->
 
 <!-- Header -->
 <div class="hdr">
   <div class="hdr-l">
     <div class="logo"><b>Æ</b>ther</div>
-    <div class="hdr-t">RF Perception Observatory — WiFi CSI Sensing</div>
+    <div class="hdr-t">RF Perception Observatory — 3D</div>
   </div>
   <div class="hdr-r">
     <div class="bg-badge bl"><span class="dt dt-off" id="wd"></span><span id="wl">OFFLINE</span></div>
@@ -110,235 +107,110 @@ canvas.bg{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0}
   </div>
 </div>
 
-<!-- Main Grid -->
-<div class="grid">
-  <!-- Skeleton Canvas (full left area) -->
-  <div class="skel-area">
-    <canvas id="skel"></canvas>
-    <div class="skel-label" id="sk-label">17 keypoints &middot; COCO17</div>
-    <div class="skel-conf" id="sk-conf">--</div>
+<!-- Side Panels (HUD Overlay) -->
+<div class="side">
+
+  <!-- Vitals -->
+  <div class="pnl">
+    <div class="pnl-h">Vital Signs<span class="dt dt-on"></span></div>
+    <div class="vr"><div class="vi" style="color:var(--rg)">&hearts;</div><div class="vd"><div class="vl">Heart Rate</div><div class="vv"><span id="hr" class="hb" style="color:var(--rg)">--</span><span class="vu">BPM</span></div><div class="vb"><div id="hrb" class="vf vf-hr" style="width:0"></div></div></div></div>
+    <div class="vr"><div class="vi" style="color:var(--g)">&bull;</div><div class="vd"><div class="vl">Respiration</div><div class="vv"><span id="br" style="color:var(--g)">--</span><span class="vu">RPM</span></div><div class="vb"><div id="brb" class="vf vf-br" style="width:0"></div></div></div></div>
+    <div class="vr"><div class="vi" style="color:var(--a)">&loz;</div><div class="vd"><div class="vl">HRV</div><div class="vv"><span id="hv" style="color:var(--a)">--</span><span class="vu">ms</span></div><div class="vb"><div id="hvb" class="vf vf-hv" style="width:0"></div></div></div></div>
   </div>
 
-  <!-- Side Panels -->
-  <div class="side">
+  <!-- CSI Heatmap -->
+  <div class="pnl">
+    <div class="pnl-h">CSI Amplitude Heatmap</div>
+    <div class="hm-wrap"><canvas id="hm" width="230" height="80"></canvas></div>
+    <div class="hm-axis"><span>Subcarrier &rarr;</span><span>Time &uarr;</span></div>
+  </div>
 
-    <!-- Vitals -->
-    <div class="pnl">
-      <div class="pnl-h">Vital Signs<span class="dt dt-on"></span></div>
-      <div class="vr"><div class="vi" style="color:var(--rg)">&hearts;</div><div class="vd"><div class="vl">Heart Rate</div><div class="vv"><span id="hr" class="hb" style="color:var(--rg)">--</span><span class="vu">BPM</span></div><div class="vb"><div id="hrb" class="vf vf-hr" style="width:0"></div></div></div></div>
-      <div class="vr"><div class="vi" style="color:var(--g)">&bull;</div><div class="vd"><div class="vl">Respiration</div><div class="vv"><span id="br" style="color:var(--g)">--</span><span class="vu">RPM</span></div><div class="vb"><div id="brb" class="vf vf-br" style="width:0"></div></div></div></div>
-      <div class="vr"><div class="vi" style="color:var(--a)">&loz;</div><div class="vd"><div class="vl">HRV</div><div class="vv"><span id="hv" style="color:var(--a)">--</span><span class="vu">ms</span></div><div class="vb"><div id="hvb" class="vf vf-hv" style="width:0"></div></div></div></div>
+  <!-- RF Signal -->
+  <div class="pnl">
+    <div class="pnl-h">RF Signal<span class="dt dt-on"></span></div>
+    <div class="sr"><span class="sl">RSSI</span><span class="sv" id="rssi">-44 dBm</span></div>
+    <div class="sr"><span class="sl">Channel</span><span class="sv">4</span></div>
+    <div class="sr"><span class="sl">Variance</span><span class="sv" id="var-v">--</span></div>
+    <div class="sr"><span class="sl">Motion Band</span><span class="sv" id="mot-v" style="color:var(--g)">--</span></div>
+    <div class="spark-wrap"><canvas id="spark" width="230" height="32"></canvas></div>
+  </div>
+
+  <!-- Pipeline -->
+  <div class="pnl">
+    <div class="pnl-h">Inference Pipeline</div>
+    <div class="pipe">
+      <div class="pipe-s" id="pp-tsfr">TSFR</div><div class="pipe-a">&rarr;</div>
+      <div class="pipe-s" id="pp-hampel">Hampel</div><div class="pipe-a">&rarr;</div>
+      <div class="pipe-s" id="pp-bw">BW</div><div class="pipe-a">&rarr;</div>
+      <div class="pipe-s" id="pp-avecsi">AveCSI</div><div class="pipe-a">&rarr;</div>
+      <div class="pipe-s" id="pp-fuse">Fuse</div><div class="pipe-a">&rarr;</div>
+      <div class="pipe-s" id="pp-brain">Brain</div>
     </div>
-
-    <!-- CSI Heatmap -->
-    <div class="pnl">
-      <div class="pnl-h">CSI Amplitude Heatmap</div>
-      <div class="hm-wrap"><canvas id="hm" width="230" height="80"></canvas></div>
-      <div class="hm-axis"><span>Subcarrier &rarr;</span><span>Time &uarr;</span></div>
-    </div>
-
-    <!-- RF Signal -->
-    <div class="pnl">
-      <div class="pnl-h">RF Signal<span class="dt dt-on"></span></div>
-      <div class="sr"><span class="sl">RSSI</span><span class="sv" id="rssi">-44 dBm</span></div>
-      <div class="sr"><span class="sl">Channel</span><span class="sv">4</span></div>
-      <div class="sr"><span class="sl">Variance</span><span class="sv" id="var-v">--</span></div>
-      <div class="sr"><span class="sl">Motion Band</span><span class="sv" id="mot-v" style="color:var(--g)">--</span></div>
-      <div class="spark-wrap"><canvas id="spark" width="230" height="32"></canvas></div>
-    </div>
-
-    <!-- Pipeline -->
-    <div class="pnl">
-      <div class="pnl-h">Inference Pipeline</div>
-      <div class="pipe">
-        <div class="pipe-s" id="pp-tsfr">TSFR</div><div class="pipe-a">&rarr;</div>
-        <div class="pipe-s" id="pp-hampel">Hampel</div><div class="pipe-a">&rarr;</div>
-        <div class="pipe-s" id="pp-bw">BW</div><div class="pipe-a">&rarr;</div>
-        <div class="pipe-s" id="pp-avecsi">AveCSI</div><div class="pipe-a">&rarr;</div>
-        <div class="pipe-s" id="pp-fuse">Fuse</div><div class="pipe-a">&rarr;</div>
-        <div class="pipe-s" id="pp-brain">Brain</div>
-      </div>
-      <div class="pipe-stats">
-        <span>Cond: <b id="lat-cond" style="color:var(--g)">--</b></span>
-        <span>Infer: <b id="lat-inf" style="color:var(--c)">--</b></span>
-        <span>Total: <b id="lat-tot" style="color:var(--a)">--</b></span>
-      </div>
-    </div>
-
-    <!-- Latency Grid -->
-    <div class="pnl">
-      <div class="pnl-h">Latency</div>
-      <div class="lat-grid">
-        <div class="lat-item"><div class="lat-v" id="l-cond">--</div><div class="lat-u">Condition</div></div>
-        <div class="lat-item"><div class="lat-v" id="l-fuse">--</div><div class="lat-u">Fusion</div></div>
-        <div class="lat-item"><div class="lat-v" id="l-brain">--</div><div class="lat-u">Brain NIF</div></div>
-        <div class="lat-item"><div class="lat-v" id="l-tot">--</div><div class="lat-u">Total</div></div>
-      </div>
-    </div>
-
-    <!-- Presence + Activity -->
-    <div class="pnl">
-      <div class="pnl-h">Presence</div>
-      <div class="pres-row">
-        <div class="pres-n" id="pn">0</div>
-        <div>
-          <div style="font:400 11px/1 var(--s)">occupant(s)</div>
-          <div class="pres-dots" id="pd"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="pnl">
-      <div class="pnl-h">Activity</div>
-      <div class="act-row">
-        <div class="act-i" id="ai">&#9632;</div>
-        <div><div class="act-n" id="an">--</div><div class="act-c" id="ac">0%</div></div>
-      </div>
-    </div>
-
-    <div class="pnl">
-      <div class="pnl-h">Location</div>
-      <div class="loc-v" id="lv">-- , -- , --</div>
-      <div class="loc-l">Position (x, y, z) &middot; acc: <span id="la">--</span>m</div>
+    <div class="pipe-stats">
+      <span>Cond: <b id="lat-cond" style="color:var(--g)">--</b></span>
+      <span>Infer: <b id="lat-inf" style="color:var(--c)">--</b></span>
+      <span>Total: <b id="lat-tot" style="color:var(--a)">--</b></span>
     </div>
   </div>
+
+  <!-- Latency Grid -->
+  <div class="pnl">
+    <div class="pnl-h">Latency</div>
+    <div class="lat-grid">
+      <div class="lat-item"><div class="lat-v" id="l-cond">--</div><div class="lat-u">Condition</div></div>
+      <div class="lat-item"><div class="lat-v" id="l-fuse">--</div><div class="lat-u">Fusion</div></div>
+      <div class="lat-item"><div class="lat-v" id="l-brain">--</div><div class="lat-u">Brain NIF</div></div>
+      <div class="lat-item"><div class="lat-v" id="l-tot">--</div><div class="lat-u">Total</div></div>
+    </div>
+  </div>
+
+  <!-- Presence + Activity -->
+  <div class="pnl">
+    <div class="pnl-h">Presence</div>
+    <div class="pres-row">
+      <div class="pres-n" id="pn">0</div>
+      <div>
+        <div style="font:400 11px/1 var(--s)">occupant(s)</div>
+        <div class="pres-dots" id="pd"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pnl">
+    <div class="pnl-h">Activity</div>
+    <div class="act-row">
+      <div class="act-i" id="ai">&#9632;</div>
+      <div><div class="act-n" id="an">--</div><div class="act-c" id="ac">0%</div></div>
+    </div>
+  </div>
+
+  <div class="pnl">
+    <div class="pnl-h">Location</div>
+    <div class="loc-v" id="lv">-- , -- , --</div>
+    <div class="loc-l">Position (x, y, z) &middot; acc: <span id="la">--</span>m</div>
+  </div>
+</div>
+
+<!-- Controls Hint -->
+<div class="controls-hint">
+  [1/2/3] Toggle layers &middot; [C] Camera &middot; [F] Fullscreen &middot; Drag to orbit
 </div>
 
 <!-- Footer -->
 <div class="foot">
-  <span>Æther v0.1.0 &mdash; Gleam/OTP + Rust NIFs + ESP32 CSI</span>
+  <span>Æther v0.1.0 &mdash; Gleam/OTP + Rust NIFs + Three.js</span>
   <span>ESP32 192.168.1.6 &middot; Channel 4 &middot; DENIS</span>
 </div>
 
-<script>
-const ACT={idle:'\u25A0',walking:'\u25B6',sitting_down:'\u25BC',standing_up:'\u25B2',waving:'\u25C6',falling:'\u26A0'};
-const BONES=[[0,1],[0,2],[1,3],[2,4],[5,6],[5,7],[7,9],[6,8],[8,10],[5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16]];
-let fCnt=0,fps=0,rssiH=[],csiHistory=[];
-
-// ─── Void Background ─────────────────────────────────────────────────
-const cv=document.getElementById('cv'),cx=cv.getContext('2d');let particles=[];
-function initV(){cv.width=innerWidth;cv.height=innerHeight;particles=[];for(let i=0;i<250;i++)particles.push({x:Math.random()*cv.width,y:Math.random()*cv.height,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2,r:Math.random()*1+.2,a:Math.random()*.25+.03,c:Math.random()>.55?'200,30,58':'0,255,65'})}
-let vt=0;
-function renderV(){vt+=.003;cx.fillStyle='rgba(5,5,8,.1)';cx.fillRect(0,0,cv.width,cv.height);
-const mx=cv.width/2,my=cv.height/2;
-for(let i=0;i<5;i++){const r=(vt*45+i*65)%450;const a=Math.max(0,.04-r/11000);cx.beginPath();cx.arc(mx,my,r,0,Math.PI*2);cx.strokeStyle=`rgba(200,30,58,${a})`;cx.lineWidth=.6;cx.stroke()}
-for(let i=0;i<3;i++){const r=(vt*30+i*100+200)%500;const a=Math.max(0,.025-r/20000);cx.beginPath();cx.arc(mx,my,r,0,Math.PI*2);cx.strokeStyle=`rgba(0,255,65,${a})`;cx.lineWidth=.4;cx.stroke()}
-for(const p of particles){p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=cv.width;if(p.x>cv.width)p.x=0;if(p.y<0)p.y=cv.height;if(p.y>cv.height)p.y=0;const fl=.5+.5*Math.sin(vt*2+p.x*.006);cx.beginPath();cx.arc(p.x,p.y,p.r,0,Math.PI*2);cx.fillStyle=`rgba(${p.c},${p.a*fl})`;cx.fill()}
-for(let i=0;i<particles.length;i++)for(let j=i+1;j<particles.length;j++){const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<80){cx.beginPath();cx.moveTo(particles[i].x,particles[i].y);cx.lineTo(particles[j].x,particles[j].y);cx.strokeStyle=`rgba(${particles[i].c},${(1-d/80)*.03})`;cx.lineWidth=.3;cx.stroke()}}
-requestAnimationFrame(renderV)}
-
-// ─── Skeleton ────────────────────────────────────────────────────────
-const sc=document.getElementById('skel'),sx=sc.getContext('2d');
-function resizeSkel(){sc.width=sc.parentElement.clientWidth;sc.height=sc.parentElement.clientHeight}
-function drawSkel(kps){
-  sx.clearRect(0,0,sc.width,sc.height);
-  if(!kps||!kps.length){sx.fillStyle='rgba(200,30,58,.1)';sx.font='11px JetBrains Mono';sx.textAlign='center';sx.fillText('SCANNING',sc.width/2,sc.height/2);const t=Date.now()/1000;sx.beginPath();sx.arc(sc.width/2,sc.height/2,40+Math.sin(t*2)*12,0,Math.PI*2);sx.strokeStyle=`rgba(200,30,58,${.06+Math.sin(t*3)*.02})`;sx.lineWidth=.7;sx.stroke();return}
-  const W=sc.width,H=sc.height;
-  const xs=kps.map(k=>k.x),ys=kps.map(k=>k.y);
-  const mnx=Math.min(...xs),mxx=Math.max(...xs),mny=Math.min(...ys),mxy=Math.max(...ys);
-  const rx=mxx-mnx||1,ry=mxy-mny||1;
-  const s=Math.min((W*.6)/rx,(H*.7)/ry);
-  const ox=(W-rx*s)/2,oy=(H-ry*s)/2;
-  const p=kps.map(k=>({x:(k.x-mnx)*s+ox,y:(k.y-mny)*s+oy,c:k.confidence,n:k.name}));
-
-  // Ambient glow
-  const g=sx.createRadialGradient(W/2,H/2,10,W/2,H/2,Math.min(W,H)*.4);
-  g.addColorStop(0,'rgba(200,30,58,.03)');g.addColorStop(1,'rgba(0,0,0,0)');sx.fillStyle=g;sx.fillRect(0,0,W,H);
-
-  // Bones (green, glow)
-  sx.lineCap='round';
-  for(const[i,j]of BONES){if(i<p.length&&j<p.length){const a=p[i],b=p[j],al=Math.min(a.c,b.c);
-    sx.strokeStyle=`rgba(0,255,65,${al*.12})`;sx.lineWidth=8;sx.beginPath();sx.moveTo(a.x,a.y);sx.lineTo(b.x,b.y);sx.stroke();
-    sx.strokeStyle=`rgba(0,255,65,${al*.6})`;sx.lineWidth=2;sx.beginPath();sx.moveTo(a.x,a.y);sx.lineTo(b.x,b.y);sx.stroke()}}
-
-  // Joints (red, layered)
-  for(const pt of p){const r=3+pt.c*4;
-    sx.fillStyle=`rgba(255,32,64,${pt.c*.15})`;sx.beginPath();sx.arc(pt.x,pt.y,r*3,0,Math.PI*2);sx.fill();
-    sx.fillStyle=`rgba(255,32,64,${pt.c*.8})`;sx.beginPath();sx.arc(pt.x,pt.y,r,0,Math.PI*2);sx.fill();
-    sx.fillStyle=`rgba(255,255,255,${pt.c*.7})`;sx.beginPath();sx.arc(pt.x,pt.y,r*.35,0,Math.PI*2);sx.fill()}
-
-  document.getElementById('sk-label').textContent=`${kps.length} keypoints \u00b7 COCO17`;
-  document.getElementById('sk-conf').textContent=`${(kps[0]?.confidence*100||0).toFixed(0)}%`;
-}
-
-// ─── CSI Heatmap ─────────────────────────────────────────────────────
-const hc=document.getElementById('hm'),hx=hc.getContext('2d');
-function drawHeatmap(){
-  hx.clearRect(0,0,hc.width,hc.height);
-  if(csiHistory.length<2){hx.fillStyle='#0a0510';hx.fillRect(0,0,hc.width,hc.height);hx.font='9px JetBrains Mono';hx.fillStyle='rgba(255,255,255,.2)';hx.fillText('Waiting for CSI...',6,42);return}
-  const rows=csiHistory.length,cols=csiHistory[0].length;
-  const cw=hc.width/cols,ch=hc.height/rows;
-  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const v=Math.min(1,Math.max(0,csiHistory[y][x]));hx.fillStyle=hmColor(v);hx.fillRect(x*cw,y*ch,cw+.5,ch+.5)}
-}
-function hmColor(v){
-  if(v<.25){const t=v/.25;return`rgb(${t*20|0},${10+t*40|0},${40+t*80|0})`}
-  if(v<.5){const t=(v-.25)/.25;return`rgb(${20+t*30|0},${50+t*130|0},${120-t*40|0})`}
-  if(v<.75){const t=(v-.5)/.25;return`rgb(${50+t*170|0},${180+t*60|0},${80-t*60|0})`}
-  const t=(v-.75)/.25;return`rgb(${220+t*35|0},${240-t*100|0},${20-t*20|0})`}
-
-// ─── RSSI Sparkline ──────────────────────────────────────────────────
-const rc=document.getElementById('spark'),rx=rc.getContext('2d');
-function drawSpark(){rx.clearRect(0,0,rc.width,rc.height);if(rssiH.length<2)return;rx.beginPath();for(let i=0;i<rssiH.length;i++){const x=i/(rssiH.length-1)*rc.width,y=rc.height-((rssiH[i]+80)/60)*rc.height;i===0?rx.moveTo(x,y):rx.lineTo(x,y)}rx.strokeStyle='rgba(0,255,65,.4)';rx.lineWidth=1.2;rx.shadowBlur=3;rx.shadowColor='rgba(0,255,65,.2)';rx.stroke();rx.shadowBlur=0}
-
-// ─── Pipeline Animation ─────────────────────────────────────────────
-const pipeStages=['pp-tsfr','pp-hampel','pp-bw','pp-avecsi','pp-fuse','pp-brain'];
-let pipeIdx=0;
-function animPipe(){pipeStages.forEach((id,i)=>{document.getElementById(id).classList.toggle('active',i===pipeIdx)});pipeIdx=(pipeIdx+1)%pipeStages.length}
-setInterval(animPipe,300);
-
-// ─── Simulated Latency + RSSI ────────────────────────────────────────
-function simMetrics(){
-  const cond=(.1+Math.random()*.15).toFixed(1),fuse=(.02+Math.random()*.03).toFixed(2),brain=(.3+Math.random()*.4).toFixed(1);
-  const tot=(parseFloat(cond)+parseFloat(fuse)+parseFloat(brain)).toFixed(1);
-  document.getElementById('lat-cond').textContent=cond+'ms';document.getElementById('lat-inf').textContent=brain+'ms';document.getElementById('lat-tot').textContent=tot+'ms';
-  document.getElementById('l-cond').textContent=cond+'ms';document.getElementById('l-fuse').textContent=fuse+'ms';document.getElementById('l-brain').textContent=brain+'ms';document.getElementById('l-tot').textContent=tot+'ms';
-  const rssi=-44+Math.random()*8-4;rssiH.push(rssi);if(rssiH.length>60)rssiH.shift();
-  document.getElementById('rssi').textContent=rssi.toFixed(0)+' dBm';
-  document.getElementById('var-v').textContent=(Math.random()*.3+.05).toFixed(3);
-  document.getElementById('mot-v').textContent=(Math.random()*.5).toFixed(3);
-  drawSpark();
-}
-
-// ─── CSI History Simulation ──────────────────────────────────────────
-function simCSI(){
-  const frame=[];const t=Date.now()/1000;
-  for(let i=0;i<32;i++)frame.push(.3+.25*Math.sin(i/5+t)+.1*Math.cos(i/3+t*1.3)+Math.random()*.08);
-  csiHistory.push(frame);if(csiHistory.length>30)csiHistory.shift();drawHeatmap();
-}
-
-// ─── Data Update ─────────────────────────────────────────────────────
-function upd(perceptions){
-  for(const p of perceptions){
-    if(p.type==='pose')drawSkel(p.keypoints||[]);
-    if(p.type==='vitals'){
-      const hr=p.heart_bpm||0,br=p.breath_bpm||0,hv=p.hrv||0;
-      document.getElementById('hr').textContent=hr>0?hr.toFixed(0):'--';
-      document.getElementById('br').textContent=br>0?br.toFixed(0):'--';
-      document.getElementById('hv').textContent=hv>0?hv.toFixed(0):'--';
-      document.getElementById('hrb').style.width=`${Math.min(100,((hr-40)/80)*100)}%`;
-      document.getElementById('brb').style.width=`${Math.min(100,((br-6)/24)*100)}%`;
-      document.getElementById('hvb').style.width=`${Math.min(100,hv*1.5)}%`;
-      if(hr>0)document.getElementById('hr').style.animationDuration=`${60/hr}s`;
-    }
-    if(p.type==='presence'){
-      const n=p.total_occupants||0;document.getElementById('pn').textContent=n;document.getElementById('pn').style.color=n>0?'var(--g)':'var(--t3)';
-      const d=document.getElementById('pd');d.innerHTML='';for(let i=0;i<n;i++){const s=document.createElement('span');s.className='pd';d.appendChild(s)}}
-    if(p.type==='activity'){const l=p.label||'--';document.getElementById('an').textContent=l.charAt(0).toUpperCase()+l.slice(1);document.getElementById('ai').textContent=ACT[l]||'\u25A0';document.getElementById('ac').textContent=`${((p.confidence||0)*100).toFixed(0)}%`}
-    if(p.type==='location'){document.getElementById('lv').textContent=`${(p.x||0).toFixed(1)} , ${(p.y||0).toFixed(1)} , ${(p.z||0).toFixed(1)}`;document.getElementById('la').textContent=(p.accuracy_m||0).toFixed(1)}
+<!-- Three.js via CDN import map -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
   }
-  fCnt++;fps++;document.getElementById('fc').textContent=fCnt;
 }
-
-// ─── Network ─────────────────────────────────────────────────────────
-function conn(){const h=location.hostname||'localhost',p=location.port||'9090';const ws=new WebSocket(`ws://${h}:${p}/ws/stream`);ws.onopen=()=>{document.getElementById('wd').className='dt dt-on';document.getElementById('wl').textContent='LIVE'};ws.onmessage=e=>{const d=JSON.parse(e.data);if(d.perceptions)upd(d.perceptions)};ws.onclose=()=>{document.getElementById('wd').className='dt dt-off';document.getElementById('wl').textContent='OFFLINE';setTimeout(conn,2000)};ws.onerror=()=>ws.close()}
-function poll(){fetch(`http://${location.hostname||'localhost'}:${location.port||'9090'}/api/perceptions`).then(r=>r.json()).then(d=>{if(d.perceptions)upd(d.perceptions)}).catch(()=>{})}
-
-setInterval(()=>{document.getElementById('fv').textContent=fps;fps=0},1000);
-setInterval(simMetrics,500);
-setInterval(simCSI,200);
-
-addEventListener('resize',()=>{initV();resizeSkel()});
-initV();resizeSkel();renderV();conn();setInterval(poll,400);drawSkel([]);
 </script>
+<script type="module" src="/assets/js/main.js"></script>
 </body>
 </html>

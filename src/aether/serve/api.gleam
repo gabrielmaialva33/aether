@@ -103,9 +103,9 @@ fn json_response(status: Int, body: json.Json) -> Response(ResponseData) {
 
 // ─── WebSocket: /ws/stream ──────────────────────────────────────────────────
 
-/// WebSocket state: holds the perception subscription subject.
+/// WebSocket state: holds orchestrator reference for CSI queries.
 type WsState {
-  WsState
+  WsState(orch: Subject(OrchestratorMsg))
 }
 
 fn ws_stream(
@@ -125,7 +125,7 @@ fn ws_stream(
         process.new_selector()
         |> process.select(for: perception_sub)
 
-      #(WsState, Some(selector))
+      #(WsState(orch:), Some(selector))
     },
     on_close: fn(_state) { Nil },
   )
@@ -142,11 +142,15 @@ fn ws_handler(
       mist.continue(state)
     }
     mist.Custom(perceptions) -> {
-      // Encode perceptions and push to client
+      // Encode perceptions and push to client (including raw CSI + node health)
+      let csi = orchestrator.get_csi_raw(state.orch)
+      let nodes = orchestrator.get_node_health(state.orch)
       let payload =
         json.object([
           #("perceptions", json.array(perceptions, codec.encode_perception)),
           #("count", json.int(list.length(perceptions))),
+          #("csi", codec.encode_csi_raw(csi)),
+          #("nodes", json.array(nodes, codec.encode_node_health)),
         ])
         |> json.to_string()
       let _ = mist.send_text_frame(conn, payload)
